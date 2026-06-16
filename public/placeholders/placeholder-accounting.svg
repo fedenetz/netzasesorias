@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 650" role="img" aria-labelledby="title desc">
+  <title id="title">Documentos contables ordenados</title>
+  <desc id="desc">Representacion abstracta de documentos, balances y calculadora.</desc>
+  <rect width="900" height="650" fill="#f4f5f3"/>
+  <rect x="90" y="80" width="360" height="470" rx="8" fill="#ffffff"/>
+  <rect x="135" y="135" width="210" height="24" rx="3" fill="#212832"/>
+  <rect x="135" y="200" width="260" height="14" rx="3" fill="#dddddd"/>
+  <rect x="135" y="238" width="225" height="14" rx="3" fill="#dddddd"/>
+  <rect x="135" y="276" width="280" height="14" rx="3" fill="#dddddd"/>
+  <rect x="135" y="340" width="94" height="90" rx="4" fill="#789578"/>
+  <rect x="250" y="300" width="94" height="130" rx="4" fill="#e5c570"/>
+  <rect x="365" y="250" width="94" height="180" rx="4" fill="#ff434d"/>
+  <rect x="500" y="170" width="265" height="330" rx="10" fill="#212832"/>
+  <rect x="540" y="215" width="185" height="42" rx="5" fill="#ffffff" opacity="0.92"/>
+  <g fill="#ffffff" opacity="0.9">
+    <rect x="540" y="300" width="42" height="42" rx="5"/>
+    <rect x="612" y="300" width="42" height="42" rx="5"/>
+    <rect x="684" y="300" width="42" height="42" rx="5"/>
+    <rect x="540" y="372" width="42" height="42" rx="5"/>
+    <rect x="612" y="372" width="42" height="42" rx="5"/>
+    <rect x="684" y="372" width="42" height="42" rx="5"/>
+  </g>
+</svg>

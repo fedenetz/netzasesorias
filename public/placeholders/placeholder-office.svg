@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+  <title id="title">Oficina corporativa sobria</title>
+  <desc id="desc">Composicion abstracta de una oficina con documentos y luz natural.</desc>
+  <rect width="1200" height="800" fill="#f7f7f5"/>
+  <rect x="0" y="0" width="1200" height="800" fill="#212832" opacity="0.08"/>
+  <path d="M120 620h960" stroke="#212832" stroke-width="3" opacity="0.16"/>
+  <rect x="120" y="180" width="300" height="440" rx="8" fill="#ffffff"/>
+  <rect x="460" y="140" width="620" height="480" rx="8" fill="#ffffff"/>
+  <rect x="512" y="210" width="190" height="260" rx="4" fill="#dddddd"/>
+  <rect x="730" y="210" width="290" height="32" rx="4" fill="#212832" opacity="0.9"/>
+  <rect x="730" y="276" width="220" height="18" rx="3" fill="#789578"/>
+  <rect x="730" y="324" width="250" height="18" rx="3" fill="#e5c570"/>
+  <rect x="730" y="372" width="170" height="18" rx="3" fill="#ff434d"/>
+  <rect x="180" y="240" width="180" height="22" rx="3" fill="#212832" opacity="0.8"/>
+  <rect x="180" y="300" width="150" height="14" rx="3" fill="#789578"/>
+  <rect x="180" y="340" width="180" height="14" rx="3" fill="#dddddd"/>
+  <rect x="180" y="380" width="120" height="14" rx="3" fill="#dddddd"/>
+  <circle cx="1000" cy="150" r="56" fill="#e5c570" opacity="0.55"/>
+  <path d="M0 760 C260 670 420 740 640 675 C840 615 1030 640 1200 570 V800 H0 Z" fill="#789578" opacity="0.16"/>
+</svg>

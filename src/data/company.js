@@ -9,9 +9,11 @@ export const company = {
   publicArea: 'Concepcion y Region del Biobio',
   phone: '+56 9 3200 8233',
   phoneHref: 'tel:+56932008233',
+  email: 'richard@ainahue.cl',
+  emailHref: 'mailto:richard@ainahue.cl',
+  whatsapp: '+56 9 3200 8233',
+  whatsappHref: 'https://wa.me/56932008233',
   schedule: '10:30 a 15:30',
-  email: '',
-  whatsapp: '',
   claim: 'Contadores y asesores para empresas, emprendedores y profesionales.',
   positioning:
     'Asesoria contable, tributaria y laboral en Concepcion, con trayectoria desde 1984 y foco en cumplimiento, orden y confianza.',
@@ -25,7 +27,28 @@ export const company = {
     'Netz Asesorias nace de una trayectoria profesional iniciada en 1984 por Enrique Netz, con el proposito de entregar asesoria contable y tributaria seria, responsable y cercana a empresas, profesionales y emprendedores. Con el paso del tiempo, la firma evoluciono desde NETZ S.A. hacia NETZ SpA y posteriormente a Netz Asesorias Limitada, manteniendo como eje la confianza, el cumplimiento normativo y el acompanamiento directo a sus clientes.',
   storyToday:
     'Hoy, la empresa proyecta esa experiencia hacia una nueva etapa, combinando criterio profesional, actualizacion normativa y una atencion cercana para ayudar a sus clientes a trabajar con mayor orden, seguridad y respaldo.',
+  visualLine:
+    'Linea visual sin rostros: documentos, oficina, ciudad, detalles de trabajo y composiciones sobrias que refuercen confidencialidad.',
+  editorialOwner:
+    'La actualizacion de recursos, pendientes y ajustes de la web sera gestionada internamente por la administracion de Netz Asesorias.',
 };
+
+export const leadership = [
+  {
+    name: 'Richard Netz',
+    role: 'Responsable de atencion y coordinacion',
+    credentials: 'Credenciales y cargos por confirmar',
+    description:
+      'Espacio reservado para publicar experiencia, rol profesional y datos verificables cuando la informacion este validada.',
+  },
+  {
+    name: 'Equipo Netz Asesorias',
+    role: 'Asesoria contable, tributaria y laboral',
+    credentials: 'Especialidades por confirmar',
+    description:
+      'Bloque preparado para ampliar responsables, areas de trabajo y canales directos sin publicar datos no validados.',
+  },
+];
 
 export const values = [
   {

@@ -38,6 +38,12 @@ export function ContactPage() {
               <strong>Telefono:</strong> <a href={company.phoneHref}>{company.phone}</a>
             </p>
             <p>
+              <strong>WhatsApp:</strong> <a href={company.whatsappHref}>{company.whatsapp}</a>
+            </p>
+            <p>
+              <strong>Email temporal:</strong> <a href={company.emailHref}>{company.email}</a>
+            </p>
+            <p>
               <strong>Ubicacion:</strong> {company.address}
             </p>
             <p>
@@ -45,6 +51,10 @@ export function ContactPage() {
             </p>
             <p>
               <strong>Cobertura publica:</strong> {company.publicArea}
+            </p>
+            <p>
+              Al enviar informacion aceptas el tratamiento necesario para responder la solicitud. Revisa la{' '}
+              <a href="/privacidad">politica de privacidad</a>.
             </p>
           </div>
         </aside>

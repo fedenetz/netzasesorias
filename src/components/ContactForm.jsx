@@ -1,19 +1,23 @@
-import { useState } from 'react';
 import { services } from '../data/services.js';
 import { company } from '../data/company.js';
 
 export function ContactForm() {
-  const [status, setStatus] = useState('');
-
-  function handleSubmit(event) {
-    event.preventDefault();
-    setStatus(
-      'Solicitud preparada. Mientras se define el correo corporativo, por favor contacta a Netz Asesorias por telefono para coordinar el diagnostico inicial.'
-    );
-  }
-
   return (
-    <form className="contact-form" onSubmit={handleSubmit}>
+    <form
+      className="contact-form"
+      name="contacto-netz"
+      method="POST"
+      action="/contacto"
+      data-netlify="true"
+      netlify-honeypot="bot-field"
+    >
+      <input type="hidden" name="form-name" value="contacto-netz" />
+      <p className="honeypot">
+        <label>
+          No completar
+          <input name="bot-field" tabIndex="-1" autoComplete="off" />
+        </label>
+      </p>
       <div className="form-grid">
         <label>
           Nombre
@@ -54,13 +58,12 @@ export function ContactForm() {
         <textarea name="message" rows="6" required />
       </label>
       <button className="button button-primary" type="submit">
-        Preparar solicitud
+        Enviar solicitud
       </button>
-      {status ? (
-        <p className="form-status" role="status">
-          {status} Telefono: <a href={company.phoneHref}>{company.phone}</a>.
-        </p>
-      ) : null}
+      <p className="form-status">
+        Tambien puedes escribir directamente a <a href={company.emailHref}>{company.email}</a> o por{' '}
+        <a href={company.whatsappHref}>WhatsApp</a>.
+      </p>
     </form>
   );
 }

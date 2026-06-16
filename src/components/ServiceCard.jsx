@@ -21,8 +21,8 @@ export function ServiceCard({ service, compact = false }) {
           </ul>
         </div>
       ) : null}
-      <a className="text-link" href="/contacto">
-        Solicitar asesoria
+      <a className="text-link" href={`/servicios/${service.slug}`}>
+        Ver detalle
       </a>
     </article>
   );

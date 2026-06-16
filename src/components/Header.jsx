@@ -4,6 +4,7 @@ const navigation = [
   { href: '/', label: 'Inicio' },
   { href: '/nosotros', label: 'Nosotros' },
   { href: '/servicios', label: 'Servicios' },
+  { href: '/recursos', label: 'Recursos' },
   { href: '/contacto', label: 'Contacto' },
 ];
 
@@ -37,7 +38,7 @@ export function Header() {
           ))}
         </nav>
         <a className="header-cta" href="/contacto">
-          Solicitar asesoria
+          Hablar con Netz
         </a>
       </div>
     </header>

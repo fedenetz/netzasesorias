@@ -2,7 +2,7 @@ import { CTASection } from '../components/CTASection.jsx';
 import { PlaceholderImage } from '../components/PlaceholderImage.jsx';
 import { SectionHeading } from '../components/SectionHeading.jsx';
 import { Timeline } from '../components/Timeline.jsx';
-import { company, timeline, values } from '../data/company.js';
+import { company, leadership, timeline, values } from '../data/company.js';
 
 export function NosotrosPage() {
   return (
@@ -37,6 +37,24 @@ export function NosotrosPage() {
           <h2>Ser una firma reconocida en Concepcion por su seriedad</h2>
           <p>{company.vision}</p>
         </article>
+      </section>
+
+      <section className="section">
+        <SectionHeading
+          eyebrow="Responsables"
+          title="Atencion directa con credenciales por validar"
+          text="Estos espacios quedan preparados para publicar cargos, experiencia y credenciales verificables cuando la informacion este confirmada."
+        />
+        <div className="leadership-grid">
+          {leadership.map((person) => (
+            <article key={person.name}>
+              <p className="service-kicker">{person.role}</p>
+              <h3>{person.name}</h3>
+              <strong>{person.credentials}</strong>
+              <p>{person.description}</p>
+            </article>
+          ))}
+        </div>
       </section>
 
       <section className="section muted-section">

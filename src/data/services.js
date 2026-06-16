@@ -1,5 +1,19 @@
 export const services = [
   {
+    slug: 'asesoria-tributaria',
+    name: 'Asesoria tributaria',
+    summary:
+      'Revision y acompanamiento tributario para cumplir obligaciones, anticipar riesgos y ordenar criterios de trabajo.',
+    audience: 'Empresas, pymes, profesionales y personas naturales con obligaciones tributarias activas.',
+    problem:
+      'Dudas frente a impuestos, fiscalizaciones, declaraciones, plazos, registros o informacion tributaria dispersa.',
+    benefits: [
+      'Revision de antecedentes tributarios segun el caso.',
+      'Orientacion para ordenar obligaciones y plazos relevantes.',
+      'Acompanamiento responsable frente a consultas o requerimientos.',
+    ],
+  },
+  {
     slug: 'contabilidad-mensual',
     name: 'Contabilidad mensual',
     summary:
@@ -70,6 +84,20 @@ export const services = [
     ],
   },
   {
+    slug: 'honorarios-boletas',
+    name: 'Honorarios y boletas electronicas',
+    summary:
+      'Orientacion para profesionales que emiten boletas de honorarios y necesitan ordenar retenciones, respaldos y obligaciones.',
+    audience: 'Profesionales independientes, prestadores de servicios y personas naturales que emiten boletas.',
+    problem:
+      'Dudas al emitir boletas, controlar retenciones, preparar antecedentes o entender obligaciones relacionadas.',
+    benefits: [
+      'Orientacion sobre emision y orden documental segun situacion del contribuyente.',
+      'Revision de antecedentes para declaraciones relacionadas.',
+      'Apoyo para mantener informacion clara antes de procesos tributarios.',
+    ],
+  },
+  {
     slug: 'ciclo-de-vida',
     name: 'Inicio de actividades, modificaciones y termino de giro',
     summary:
@@ -114,3 +142,7 @@ export const services = [
 ];
 
 export const featuredServices = services.slice(0, 4);
+
+export function getServiceBySlug(slug) {
+  return services.find((service) => service.slug === slug);
+}

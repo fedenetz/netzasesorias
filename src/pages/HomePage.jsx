@@ -8,6 +8,7 @@ import { TrustBar } from '../components/TrustBar.jsx';
 import { company, timeline, trustItems } from '../data/company.js';
 import { faq } from '../data/faq.js';
 import { benefitBlocks, highlightedServices, processSteps, testimonialPlaceholders } from '../data/home.js';
+import { resources } from '../data/resources.js';
 
 export function HomePage() {
   return (
@@ -73,7 +74,7 @@ export function HomePage() {
               <span>{service.code}</span>
               <h3>{service.name}</h3>
               <p>{service.summary}</p>
-              <a className="text-link" href={`/servicios#${service.slug}`}>
+              <a className="text-link" href={`/servicios/${service.slug}`}>
                 Ver alcance
               </a>
             </article>
@@ -132,8 +133,8 @@ export function HomePage() {
         <div className="section-shell">
           <SectionHeading
             eyebrow="Testimonios"
-            title="Prueba social preparada para contenido real"
-            text="No se publican testimonios inventados. Estos espacios quedan listos para reemplazar por citas autorizadas."
+            title="Espacios reservados para prueba social autorizada"
+            text="No se publican resultados inventados. Estos bloques quedan como placeholder hasta contar con testimonios o casos autorizados."
             align="center"
           />
           <div className="testimonial-grid">
@@ -147,6 +148,28 @@ export function HomePage() {
               </article>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className="section">
+        <SectionHeading
+          eyebrow="Recursos"
+          title="Guias y alertas para ordenar dudas frecuentes"
+          text="Un espacio editorial en desarrollo continuo para explicar temas tributarios y laborales con apoyo de fuentes oficiales."
+        />
+        <div className="resource-grid compact">
+          {resources.slice(0, 3).map((resource) => (
+            <article key={resource.slug} className="resource-card">
+              <div>
+                <p className="service-kicker">{resource.category}</p>
+                <h3>{resource.title}</h3>
+                <p>{resource.summary}</p>
+              </div>
+              <a className="text-link" href="/recursos">
+                Ver recursos
+              </a>
+            </article>
+          ))}
         </div>
       </section>
 

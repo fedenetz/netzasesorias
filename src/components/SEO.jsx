@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { absoluteUrl } from '../data/seo.js';
 import { company } from '../data/company.js';
+import { services } from '../data/services.js';
 
 function setMeta(selector, attributes) {
   let element = document.head.querySelector(selector);
@@ -44,11 +45,12 @@ export function SEO({ title, description, path }) {
 
     schema.textContent = JSON.stringify({
       '@context': 'https://schema.org',
-      '@type': 'AccountingService',
+      '@type': ['AccountingService', 'ProfessionalService', 'LocalBusiness'],
       name: company.name,
       legalName: company.formalName,
       url: absoluteUrl('/'),
       telephone: company.phone,
+      email: company.email,
       address: {
         '@type': 'PostalAddress',
         streetAddress: 'Anibal Pinto 215, oficina 409',
@@ -57,6 +59,27 @@ export function SEO({ title, description, path }) {
         addressCountry: 'CL',
       },
       areaServed: company.publicArea,
+      contactPoint: {
+        '@type': 'ContactPoint',
+        telephone: company.phone,
+        email: company.email,
+        contactType: 'customer service',
+        areaServed: 'CL',
+        availableLanguage: 'es',
+      },
+      hasOfferCatalog: {
+        '@type': 'OfferCatalog',
+        name: 'Servicios Netz Asesorias',
+        itemListElement: services.map((service) => ({
+          '@type': 'Offer',
+          itemOffered: {
+            '@type': 'Service',
+            name: service.name,
+            description: service.summary,
+            url: absoluteUrl(`/servicios/${service.slug}`),
+          },
+        })),
+      },
     });
   }, [description, path, title]);
 

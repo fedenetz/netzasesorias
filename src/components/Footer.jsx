@@ -13,6 +13,10 @@ export function Footer({ company }) {
             <br />
             <a href={company.phoneHref}>{company.phone}</a>
             <br />
+            <a href={company.whatsappHref}>WhatsApp publico</a>
+            <br />
+            <a href={company.emailHref}>{company.email}</a>
+            <br />
             Horario informado: {company.schedule}
           </address>
         </div>
@@ -23,6 +27,11 @@ export function Footer({ company }) {
             <br />
             RUT {company.rut}
           </p>
+          <nav className="footer-links" aria-label="Enlaces legales">
+            <a href="/privacidad">Privacidad</a>
+            <a href="/aviso-legal">Aviso legal</a>
+            <a href="/recursos">Recursos</a>
+          </nav>
         </div>
       </div>
     </footer>

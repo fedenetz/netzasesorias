@@ -1,4 +1,4 @@
-export function CTASection({ title, text, primaryLabel = 'Solicitar diagnostico gratuito' }) {
+export function CTASection({ title, text, primaryLabel = 'Hablar con Netz' }) {
   return (
     <section className="cta-section">
       <div>

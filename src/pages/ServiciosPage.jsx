@@ -33,6 +33,7 @@ export function ServiciosPage() {
       <CTASection
         title="No sabes por donde partir?"
         text="El diagnostico inicial ayuda a revisar antecedentes, identificar prioridades y definir una propuesta de trabajo."
+        primaryLabel="Hablar con Netz"
       />
     </>
   );

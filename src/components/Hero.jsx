@@ -7,17 +7,16 @@ export function Hero() {
       <div className="hero-overlay section-shell">
         <div className="hero-content reveal-in">
           <p className="eyebrow hero-kicker">{company.foundedLabel}</p>
-          <h1>Contabilidad e impuestos en orden.</h1>
+          <h1>Asesoria contable, tributaria y laboral para operar con orden y tranquilidad.</h1>
           <p>
-            Asesoria contable, tributaria y laboral en Concepcion para empresas, emprendedores y profesionales que
-            necesitan cumplimiento claro, documentos ordenados y acompanamiento responsable.
+            Acompanamos a empresas, emprendedores y profesionales con una mirada tecnica, directa y responsable.
           </p>
           <div className="hero-actions" aria-label="Acciones principales">
             <a className="button button-primary" href="/contacto">
-              Solicitar diagnostico gratuito
+              Hablar con Netz
             </a>
             <a className="button button-secondary" href="/servicios">
-              Revisar servicios
+              Ver servicios
             </a>
           </div>
           <div className="hero-proof" aria-label="Pruebas de confianza">

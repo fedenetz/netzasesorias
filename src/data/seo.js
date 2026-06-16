@@ -13,6 +13,12 @@ export const seo = {
       'Contabilidad mensual, IVA/F29, Operacion Renta/F22, Declaraciones Juradas, remuneraciones, inicio de actividades y acompanamiento ante instituciones.',
     path: '/servicios',
   },
+  recursos: {
+    title: 'Recursos tributarios y laborales | Netz Asesorias',
+    description:
+      'Guias, alertas y checklists tributarios y laborales para empresas, profesionales y personas naturales en Chile.',
+    path: '/recursos',
+  },
   nosotros: {
     title: 'Nosotros | Netz Asesorias desde 1984',
     description:
@@ -24,6 +30,18 @@ export const seo = {
     description:
       'Contacta a Netz Asesorias en Concepcion. Solicita diagnostico inicial gratuito para servicios contables, tributarios y laborales.',
     path: '/contacto',
+  },
+  avisoLegal: {
+    title: 'Aviso legal | Netz Asesorias',
+    description:
+      'Informacion legal general sobre el uso del sitio, alcance profesional, enlaces externos y datos de Netz Asesorias.',
+    path: '/aviso-legal',
+  },
+  privacidad: {
+    title: 'Politica de privacidad | Netz Asesorias',
+    description:
+      'Politica de privacidad y tratamiento de datos personales entregados a traves del sitio web de Netz Asesorias.',
+    path: '/privacidad',
   },
 };
 

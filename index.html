@@ -15,6 +15,17 @@
     <meta property="og:image" content="/brand/logo-negro.png" />
   </head>
   <body>
+    <form name="contacto-netz" netlify netlify-honeypot="bot-field" hidden>
+      <input type="hidden" name="form-name" value="contacto-netz" />
+      <input name="bot-field" />
+      <input name="name" />
+      <input name="company" />
+      <input name="rut" />
+      <input name="phone" />
+      <input name="email" />
+      <select name="service"></select>
+      <textarea name="message"></textarea>
+    </form>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

@@ -3,12 +3,11 @@ import { FAQAccordion } from '../components/FAQAccordion.jsx';
 import { Hero } from '../components/Hero.jsx';
 import { PlaceholderImage } from '../components/PlaceholderImage.jsx';
 import { SectionHeading } from '../components/SectionHeading.jsx';
-import { ServiceCard } from '../components/ServiceCard.jsx';
 import { Timeline } from '../components/Timeline.jsx';
 import { TrustBar } from '../components/TrustBar.jsx';
-import { company, timeline, trustItems, workMethod } from '../data/company.js';
+import { company, timeline, trustItems } from '../data/company.js';
 import { faq } from '../data/faq.js';
-import { featuredServices } from '../data/services.js';
+import { benefitBlocks, highlightedServices, processSteps, testimonialPlaceholders } from '../data/home.js';
 
 export function HomePage() {
   return (
@@ -16,31 +15,100 @@ export function HomePage() {
       <Hero />
       <TrustBar items={trustItems} />
 
+      <section className="section split-section problem-section">
+        <div>
+          <SectionHeading
+            eyebrow="Problema que resolvemos"
+            title="Cuando la informacion esta dispersa, cumplir se vuelve lento y riesgoso"
+            text="La contabilidad, los impuestos y las obligaciones laborales no necesitan mas ruido. Necesitan antecedentes claros, plazos visibles y una gestion que priorice cumplimiento responsable."
+          />
+          <div className="reason-list">
+            <p>Menos incertidumbre frente a declaraciones, renta y requerimientos.</p>
+            <p>Mas orden para bancos, instituciones y decisiones internas.</p>
+            <p>Un punto de partida claro antes de contratar un servicio mensual.</p>
+          </div>
+        </div>
+        <div className="solution-panel">
+          <p className="eyebrow">Solucion</p>
+          <h2>Diagnostico inicial, alcance definido y acompanamiento directo.</h2>
+          <p>
+            La primera revision permite entender el caso, ordenar prioridades y definir que servicio corresponde sin
+            promesas excesivas ni informacion inventada.
+          </p>
+          <a className="text-link" href="/contacto">
+            Coordinar diagnostico
+          </a>
+        </div>
+      </section>
+
+      <section className="section muted-section">
+        <div className="section-shell">
+          <SectionHeading
+            eyebrow="Beneficios"
+            title="Una asesoria pensada para reducir friccion y aumentar control"
+            text="Cada bloque apunta a una necesidad concreta: entender, cumplir, ordenar, decidir o responder ante instituciones."
+            align="center"
+          />
+          <div className="bento-grid">
+            {benefitBlocks.map((benefit, index) => (
+              <article key={benefit.title} className={`bento-card bento-${benefit.tone} ${index === 0 ? 'is-large' : ''}`}>
+                <span>{benefit.code}</span>
+                <h3>{benefit.title}</h3>
+                <p>{benefit.text}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section className="section">
         <SectionHeading
           eyebrow="Servicios principales"
-          title="Orden contable, cumplimiento tributario y apoyo laboral"
+          title="Cobertura para las obligaciones que mas impacto tienen en tu operacion"
           text="Servicios confirmados para empresas, emprendedores, profesionales y personas naturales que necesitan trabajar con mayor claridad."
         />
-        <div className="service-grid compact">
-          {featuredServices.map((service) => (
-            <ServiceCard key={service.slug} service={service} compact />
+        <div className="service-bento">
+          {highlightedServices.map((service, index) => (
+            <article key={service.slug} className={index === 0 || index === 4 ? 'service-feature' : ''}>
+              <span>{service.code}</span>
+              <h3>{service.name}</h3>
+              <p>{service.summary}</p>
+              <a className="text-link" href={`/servicios#${service.slug}`}>
+                Ver alcance
+              </a>
+            </article>
           ))}
         </div>
       </section>
 
-      <section className="section split-section">
+      <section className="section process-section">
+        <SectionHeading
+          eyebrow="Proceso"
+          title="De la primera revision a una gestion ordenada"
+          text="El proceso evita saltar directo a una propuesta sin conocer antecedentes. Eso reduce friccion y mejora la calidad de la decision."
+        />
+        <div className="process-grid">
+          {processSteps.map((step, index) => (
+            <article key={step.title}>
+              <span>{String(index + 1).padStart(2, '0')}</span>
+              <h3>{step.title}</h3>
+              <p>{step.text}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="section split-section visual-section">
         <div>
           <SectionHeading
-            eyebrow="Por que elegir NETZ"
-            title="Una asesoria cercana, seria y enfocada en cumplimiento"
+            eyebrow="Experiencia"
+            title="Criterio profesional con una comunicacion mas simple"
             text={company.valueShort}
           />
-          <div className="reason-list">
-            <p>Trayectoria institucional desde 1984.</p>
-            <p>Atencion directa y personalizada.</p>
-            <p>Enfoque en cumplimiento tributario y resguardo del contribuyente.</p>
-            <p>Experiencia en pymes, emprendedores, profesionales y personas naturales.</p>
+          <div className="visual-list">
+            <p>Revision de antecedentes antes de definir alcance.</p>
+            <p>Seguimiento de obligaciones contables, tributarias y laborales.</p>
+            <p>Respaldo documental para procesos administrativos.</p>
           </div>
         </div>
         <PlaceholderImage
@@ -49,23 +117,9 @@ export function HomePage() {
         />
       </section>
 
-      <section className="section muted-section">
-        <SectionHeading
-          eyebrow="Forma de trabajo"
-          title="Diagnostico, ordenamiento y acompanamiento"
-          text="El proceso parte con una revision inicial y avanza segun los antecedentes disponibles y el alcance del servicio."
-          align="center"
-        />
-        <ol className="method-list">
-          {workMethod.map((step) => (
-            <li key={step}>{step}</li>
-          ))}
-        </ol>
-      </section>
-
-      <section className="section split-section reverse">
+      <section className="section split-section reverse history-section">
         <div>
-          <SectionHeading eyebrow="Historia" title={company.foundedLabel} text={company.storyToday} />
+          <SectionHeading eyebrow="Trayectoria" title={company.foundedLabel} text={company.storyToday} />
           <Timeline items={timeline} />
         </div>
         <PlaceholderImage
@@ -74,11 +128,33 @@ export function HomePage() {
         />
       </section>
 
-      <section className="section">
+      <section className="section muted-section">
+        <div className="section-shell">
+          <SectionHeading
+            eyebrow="Testimonios"
+            title="Prueba social preparada para contenido real"
+            text="No se publican testimonios inventados. Estos espacios quedan listos para reemplazar por citas autorizadas."
+            align="center"
+          />
+          <div className="testimonial-grid">
+            {testimonialPlaceholders.map((testimonial) => (
+              <article key={testimonial.context} className="testimonial-card">
+                <p>{testimonial.quote}</p>
+                <div>
+                  <strong>{testimonial.name}</strong>
+                  <span>{testimonial.context}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="section faq-section">
         <SectionHeading
           eyebrow="Preguntas frecuentes"
-          title="Respuestas directas para comenzar con claridad"
-          text="Informacion base validada para la primera version del sitio."
+          title="Respuestas directas para avanzar sin dudas basicas"
+          text="Preguntas orientadas a reducir objeciones antes de solicitar el diagnostico inicial."
         />
         <FAQAccordion items={faq.slice(0, 6)} />
       </section>

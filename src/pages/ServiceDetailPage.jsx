@@ -127,7 +127,7 @@ export function ServiceDetailPage({ service }) {
       <CTASection
         title="Hablemos con antecedentes claros"
         text="Comparte tu situacion y coordinaremos una revision inicial para definir si este servicio corresponde a tu caso."
-        primaryLabel="Hablar con Netz"
+        primaryLabel="Agenda diagnostico"
       />
     </>
   );

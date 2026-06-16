@@ -44,7 +44,7 @@ Acciones:
   - Bajada: "Acompanamos a empresas y profesionales con una mirada tecnica, directa y responsable."
 - Reducir altura del hero en mobile para que la barra de confianza aparezca antes.
 - Cambiar CTA principal a un tono menos agresivo:
-  - "Hablar con Netz"
+  - "Agenda diagnostico"
   - "Ver servicios"
 - Mover senales de confianza cerca del primer viewport:
   - Trayectoria desde 1984.

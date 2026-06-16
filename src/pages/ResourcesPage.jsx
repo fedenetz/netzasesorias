@@ -78,7 +78,7 @@ export function ResourcesPage() {
       <CTASection
         title="Tienes una duda tributaria o laboral concreta?"
         text="Comparte los antecedentes disponibles y revisaremos que servicio corresponde antes de avanzar."
-        primaryLabel="Hablar con Netz"
+        primaryLabel="Agenda diagnostico"
       />
     </>
   );

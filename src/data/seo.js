@@ -22,7 +22,7 @@ export const seo = {
   nosotros: {
     title: 'Nosotros | Netz Asesorias desde 1984',
     description:
-      'Conoce la trayectoria de Netz Asesorias, firma contable y tributaria en Concepcion fundada por Enrique Netz, con foco en cumplimiento, orden y confianza.',
+      'Conoce la trayectoria de Netz Asesorias, firma contable y tributaria en Concepcion con experiencia desde 1984 y foco en cumplimiento, orden y confianza.',
     path: '/nosotros',
   },
   contacto: {

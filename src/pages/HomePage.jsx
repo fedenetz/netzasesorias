@@ -3,9 +3,8 @@ import { FAQAccordion } from '../components/FAQAccordion.jsx';
 import { Hero } from '../components/Hero.jsx';
 import { PlaceholderImage } from '../components/PlaceholderImage.jsx';
 import { SectionHeading } from '../components/SectionHeading.jsx';
-import { Timeline } from '../components/Timeline.jsx';
 import { TrustBar } from '../components/TrustBar.jsx';
-import { company, timeline, trustItems } from '../data/company.js';
+import { company, trustItems } from '../data/company.js';
 import { faq } from '../data/faq.js';
 import { benefitBlocks, highlightedServices, processSteps, testimonialPlaceholders } from '../data/home.js';
 import { resources } from '../data/resources.js';
@@ -121,7 +120,11 @@ export function HomePage() {
       <section className="section split-section reverse history-section">
         <div>
           <SectionHeading eyebrow="Trayectoria" title={company.foundedLabel} text={company.storyToday} />
-          <Timeline items={timeline} />
+          <div className="reason-list">
+            <p>Mas de 40 anos de experiencia aplicada a cumplimiento contable, tributario y laboral.</p>
+            <p>Atencion directa para empresas, emprendedores, profesionales y personas naturales.</p>
+            <p>Foco en orden documental, criterio responsable y acompanamiento claro.</p>
+          </div>
         </div>
         <PlaceholderImage
           src="/placeholders/placeholder-documents.svg"

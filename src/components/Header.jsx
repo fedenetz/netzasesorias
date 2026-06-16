@@ -16,7 +16,7 @@ export function Header() {
     <header className="site-header">
       <div className="header-inner">
         <a className="brand-link" href="/" aria-label="Ir al inicio">
-          <img src="/brand/logo-negro.png" alt="Netz Asesorias" />
+          <img src="/brand/icono-negro.png" alt="Netz Asesorias" />
         </a>
         <button
           className="menu-toggle"
@@ -38,7 +38,7 @@ export function Header() {
           ))}
         </nav>
         <a className="header-cta" href="/contacto">
-          Hablar con Netz
+          Agenda diagnostico
         </a>
       </div>
     </header>

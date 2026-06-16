@@ -24,9 +24,9 @@ export const company = {
   vision:
     'Ser una firma reconocida en Concepcion por su seriedad, actualizacion y compromiso con el bienestar del contribuyente, facilitando una relacion mas clara, ordenada y segura entre nuestros clientes y las entidades fiscales, laborales y administrativas.',
   story:
-    'Netz Asesorias nace de una trayectoria profesional iniciada en 1984 por Enrique Netz, con el proposito de entregar asesoria contable y tributaria seria, responsable y cercana a empresas, profesionales y emprendedores. Con el paso del tiempo, la firma evoluciono desde NETZ S.A. hacia NETZ SpA y posteriormente a Netz Asesorias Limitada, manteniendo como eje la confianza, el cumplimiento normativo y el acompanamiento directo a sus clientes.',
+    'Netz Asesorias se proyecta desde una trayectoria profesional iniciada en 1984, con el proposito de entregar asesoria contable y tributaria seria, responsable y cercana a empresas, profesionales y emprendedores.',
   storyToday:
-    'Hoy, la empresa proyecta esa experiencia hacia una nueva etapa, combinando criterio profesional, actualizacion normativa y una atencion cercana para ayudar a sus clientes a trabajar con mayor orden, seguridad y respaldo.',
+    'Desde 1984, la experiencia acumulada se mantiene como base de un trabajo enfocado en criterio profesional, actualizacion normativa y atencion cercana para ayudar a los clientes a operar con mayor orden, seguridad y respaldo.',
   visualLine:
     'Linea visual sin rostros: documentos, oficina, ciudad, detalles de trabajo y composiciones sobrias que refuercen confidencialidad.',
   editorialOwner:
@@ -80,16 +80,6 @@ export const values = [
     name: 'Compromiso',
     description:
       'Acompanar al cliente para que no se sienta desvalido ante procesos contables, tributarios o laborales.',
-  },
-];
-
-export const timeline = [
-  { year: '1984', text: 'Fundacion de NETZ S.A. por Enrique Netz.' },
-  { year: '1998', text: 'Transformacion a NETZ SpA.' },
-  { year: '2022', text: 'Transformacion a Netz Asesorias Limitada.' },
-  {
-    year: '2026',
-    text: 'Ordenamiento de identidad corporativa y nueva presencia digital bajo netzasesorias.cl.',
   },
 ];
 

@@ -110,8 +110,8 @@ textarea:focus-visible {
 }
 
 .brand-link img {
-  width: 148px;
-  height: 50px;
+  width: 56px;
+  height: 56px;
   object-fit: contain;
 }
 
@@ -228,6 +228,12 @@ textarea:focus-visible {
 .hero-content,
 .page-hero > div {
   width: min(820px, 100%);
+}
+
+.hero-logo {
+  width: clamp(150px, 18vw, 230px);
+  height: auto;
+  margin-bottom: 26px;
 }
 
 .hero h1,
@@ -694,31 +700,6 @@ textarea:focus-visible {
   padding-top: 0;
 }
 
-.timeline {
-  display: grid;
-  gap: 14px;
-  margin-top: 26px;
-}
-
-.timeline article {
-  display: grid;
-  grid-template-columns: 74px 1fr;
-  gap: 18px;
-  align-items: start;
-}
-
-.timeline span {
-  color: var(--color-red);
-  font-size: 1.1rem;
-  font-weight: 950;
-}
-
-.timeline p {
-  margin: 0;
-  padding-bottom: 16px;
-  border-bottom: 1px solid rgba(33, 40, 50, 0.12);
-}
-
 .testimonial-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1150,8 +1131,8 @@ textarea:focus {
 }
 
 .footer-logo {
-  width: 132px;
-  height: 46px;
+  width: 210px;
+  height: 72px;
   object-fit: contain;
   margin-bottom: 16px;
 }
@@ -1309,8 +1290,13 @@ textarea:focus {
   }
 
   .brand-link img {
-    width: 122px;
-    height: 42px;
+    width: 48px;
+    height: 48px;
+  }
+
+  .hero-logo {
+    width: 156px;
+    margin-bottom: 20px;
   }
 
   .main-nav.is-open {

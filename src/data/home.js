@@ -2,8 +2,8 @@ import { services } from './services.js';
 
 export const proofPoints = [
   {
-    value: '1984',
-    label: 'trayectoria iniciada por Enrique Netz',
+    value: '+40',
+    label: 'anos de experiencia',
   },
   {
     value: '3 areas',

@@ -6,6 +6,7 @@ export function Hero() {
     <section className="hero">
       <div className="hero-overlay section-shell">
         <div className="hero-content reveal-in">
+          <img className="hero-logo" src="/brand/logo-blanco.png" alt="Netz Asesorias" />
           <p className="eyebrow hero-kicker">{company.foundedLabel}</p>
           <h1>Asesoria contable, tributaria y laboral para operar con orden y tranquilidad.</h1>
           <p>
@@ -13,7 +14,7 @@ export function Hero() {
           </p>
           <div className="hero-actions" aria-label="Acciones principales">
             <a className="button button-primary" href="/contacto">
-              Hablar con Netz
+              Agenda diagnostico
             </a>
             <a className="button button-secondary" href="/servicios">
               Ver servicios

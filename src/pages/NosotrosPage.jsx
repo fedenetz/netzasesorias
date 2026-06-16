@@ -1,8 +1,7 @@
 import { CTASection } from '../components/CTASection.jsx';
 import { PlaceholderImage } from '../components/PlaceholderImage.jsx';
 import { SectionHeading } from '../components/SectionHeading.jsx';
-import { Timeline } from '../components/Timeline.jsx';
-import { company, leadership, timeline, values } from '../data/company.js';
+import { company, leadership, values } from '../data/company.js';
 
 export function NosotrosPage() {
   return (
@@ -18,7 +17,11 @@ export function NosotrosPage() {
       <section className="section split-section">
         <div>
           <SectionHeading eyebrow="Identidad" title="Una firma familiar con criterio profesional" text={company.storyToday} />
-          <Timeline items={timeline} />
+          <div className="reason-list">
+            <p>Trayectoria profesional desde 1984.</p>
+            <p>Asesoria contable, tributaria y laboral con foco en cumplimiento.</p>
+            <p>Comunicacion directa, orden documental y criterio responsable.</p>
+          </div>
         </div>
         <PlaceholderImage
           src="/placeholders/placeholder-office.svg"

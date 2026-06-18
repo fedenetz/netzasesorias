@@ -13,6 +13,7 @@ export const F29_STATUS_LABELS: Record<F29StatusCode, string> = {
 
 export interface ClientRow {
   id: string;
+  periodId?: string;
   rut: string;
   name: string;
   accountingCode?: string;
@@ -23,7 +24,7 @@ export interface ClientRow {
   month: number;
   amount: number | null;
   filedDate: string | null;
-  statusCode: F29StatusCode;
+  statusCode: F29StatusCode | null;
   statusLabel: string;
   dueDay: number | null;
   observation: string;

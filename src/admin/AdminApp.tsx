@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import {
   Activity, AlertTriangle, ArrowRight, Bell, Building2, CalendarDays, Check, ChevronDown,
@@ -9,6 +9,7 @@ import {
 import { clients as seedClients, docs } from './data';
 import { F29_STATUS_LABELS, type ClientRow, type F29StatusCode } from './types';
 import { persistF29Change } from './f29-api';
+import { loadAdminRows, loadClientHistory, type PeriodHistory } from './f29-data';
 import { supabase } from './supabase';
 
 type Screen = 'dashboard' | 'clients' | 'f29' | 'f22' | 'client';
@@ -39,15 +40,33 @@ function EmptyAvatar({ initials }: { initials: string }) { return <span classNam
 
 export function AdminApp({ user, preview }: { user: User | null; preview: boolean }) {
   const initialPath = window.location.pathname;
+  const periodMatch = initialPath.match(/\/f29\/(\d{4})\/(\d{1,2})/);
+  const activeYear = periodMatch ? Number(periodMatch[1]) : 2026;
+  const activeMonth = periodMatch ? Number(periodMatch[2]) : 5;
   const [screen, setScreen] = useState<Screen>(initialPath.includes('/f29') ? 'f29' : initialPath.includes('/f22') ? 'f22' : initialPath.includes('/clients/') ? 'client' : initialPath.endsWith('/clients') ? 'clients' : 'dashboard');
-  const [rows, setRows] = useState(seedClients);
-  const [selected, setSelected] = useState(seedClients[0]);
+  const [rows, setRows] = useState<ClientRow[]>(preview ? seedClients : []);
+  const [selected, setSelected] = useState<ClientRow | null>(preview ? seedClients[0] : null);
+  const [dataLoading, setDataLoading] = useState(!preview);
+  const [dataError, setDataError] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    if (preview) return;
+    loadAdminRows(activeYear, activeMonth).then(liveRows => {
+      setRows(liveRows);
+      const routeRut = decodeURIComponent(window.location.pathname.replace('/clients/', ''));
+      setSelected(liveRows.find(row => row.rut === routeRut) ?? liveRows[0] ?? null);
+      setDataLoading(false);
+    }).catch(error => {
+      setDataError(error instanceof Error ? error.message : 'No fue posible cargar los datos de Supabase.');
+      setDataLoading(false);
+    });
+  }, [activeMonth, activeYear, preview]);
 
   const go = (next: Screen, client?: ClientRow) => {
     if (client) setSelected(client);
     setScreen(next);
-    const paths: Record<Screen, string> = { dashboard: '/control', clients: '/clients', f29: '/f29/2026/05', f22: '/f22/2026', client: `/clients/${client?.rut ?? selected.rut}` };
+    const paths: Record<Screen, string> = { dashboard: '/control', clients: '/clients', f29: `/f29/${activeYear}/${String(activeMonth).padStart(2, '0')}`, f22: '/f22/2026', client: `/clients/${client?.rut ?? selected?.rut ?? ''}` };
     window.history.pushState({}, '', paths[next]);
     setSidebarOpen(false);
   };
@@ -66,7 +85,7 @@ export function AdminApp({ user, preview }: { user: User | null; preview: boolea
         <div className="workspace-switch"><span className="workspace-icon">N</span><span><strong>Netz Asesorías</strong><small>Operaciones</small></span><ChevronsUpDown size={15} /></div>
         <nav className="control-nav" aria-label="Operaciones">
           <p>Principal</p>
-          {nav.map(item => <button key={item.id} className={screen === item.id ? 'active' : ''} onClick={() => go(item.id)}><item.icon size={18} />{item.label}{item.id === 'f29' && <em>8</em>}</button>)}
+          {nav.map(item => <button key={item.id} className={screen === item.id ? 'active' : ''} onClick={() => go(item.id)}><item.icon size={18} />{item.label}{item.id === 'f29' && <em>{rows.filter(row => row.periodId).length}</em>}</button>)}
           <p>Gestión</p>
           <button><Files size={18} />Documentos</button>
           <button><Activity size={18} />Actividad</button>
@@ -86,11 +105,13 @@ export function AdminApp({ user, preview }: { user: User | null; preview: boolea
             <div className="user-menu"><EmptyAvatar initials="CS" /><span><strong>{displayName}</strong><small>Contador senior</small></span><ChevronDown size={15} /></div>
           </div>
         </header>
-        {screen === 'dashboard' && <Dashboard rows={rows} go={go} />}
-        {screen === 'f29' && <F29Dashboard rows={rows} updateRow={updateRow} go={go} />}
-        {screen === 'f22' && <F22Dashboard />}
-        {screen === 'clients' && <ClientsIndex rows={rows} go={go} />}
-        {screen === 'client' && <ClientProfile client={selected} />}
+        {dataLoading && <div className="control-data-state">Cargando datos de Supabase…</div>}
+        {dataError && <div className="control-data-state is-error"><AlertTriangle size={18} />{dataError}</div>}
+        {!dataLoading && !dataError && screen === 'dashboard' && <Dashboard rows={rows} go={go} />}
+        {!dataLoading && !dataError && screen === 'f29' && <F29Dashboard rows={rows.filter(row => row.periodId)} updateRow={updateRow} go={go} />}
+        {!dataLoading && !dataError && screen === 'f22' && <F22Dashboard />}
+        {!dataLoading && !dataError && screen === 'clients' && <ClientsIndex rows={rows} go={go} />}
+        {!dataLoading && !dataError && screen === 'client' && selected && <ClientProfile client={selected} />}
       </main>
     </div>
   );
@@ -101,24 +122,30 @@ function PageHeader({ eyebrow, title, description, actions }: { eyebrow: string;
 }
 
 function Dashboard({ rows, go }: { rows: ClientRow[]; go: (s: Screen, c?: ClientRow) => void }) {
-  const blocked = rows.filter(r => r.statusCode === 'B' || r.statusCode === 'H').length;
+  const periods = rows.filter(row => row.periodId);
+  const completed = periods.filter(row => row.statusCode === 'D').length;
+  const informed = periods.filter(row => row.statusCode === 'C').length;
+  const loaded = periods.filter(row => row.statusCode === 'A').length;
+  const pending = periods.filter(row => row.statusCode === 'E' || row.statusCode === null).length;
+  const blocked = periods.filter(row => row.statusCode === 'B' || row.statusCode === 'H').length;
+  const completion = periods.length ? Math.round((completed / periods.length) * 100) : 0;
   return <div className="control-content">
     <PageHeader eyebrow="Jueves, 18 de junio" title="Buenos días, Camila" description="Este es el estado tributario de tu cartera al día de hoy." actions={<><button className="button-ghost"><Cloud size={16} /> Escanear Drive</button><button className="button-dark" onClick={() => go('f29')}>Ir a F29 <ArrowRight size={16} /></button></>} />
     <div className="metrics-grid">
-      <Metric icon={<Building2 />} label="Clientes activos" value="48" note="3 incorporados este mes" tone="blue" />
-      <Metric icon={<Check />} label="F29 listos" value="31" note="64,6% de avance" tone="green" progress={65} />
-      <Metric icon={<Clock3 />} label="Trabajo pendiente" value="12" note="5 requieren documentos" tone="gold" />
-      <Metric icon={<AlertTriangle />} label="Bloqueados" value={String(blocked + 2)} note="Requieren atención" tone="red" />
+      <Metric icon={<Building2 />} label="Clientes activos" value={String(rows.length)} note={`${periods.length} con período F29 actual`} tone="blue" />
+      <Metric icon={<Check />} label="Pagados / enviados" value={String(completed)} note={`${completion}% del período`} tone="green" progress={completion} />
+      <Metric icon={<Clock3 />} label="Trabajo pendiente" value={String(pending)} note="Incluye períodos sin estado" tone="gold" />
+      <Metric icon={<AlertTriangle />} label="Requieren revisión" value={String(blocked)} note="Error Dig. o Rev. por Scarlen" tone="red" />
     </div>
     <div className="dashboard-grid">
       <section className="control-card span-two"><CardHead title="F29 · Mayo 2026" subtitle="Vencimiento general: 20 jun" action={<button onClick={() => go('f29')}>Ver dashboard <ArrowRight size={14} /></button>} />
-        <div className="progress-overview"><div className="progress-ring"><strong>65%</strong><span>completado</span></div><div className="progress-legend"><p><i className="legend-ready" />Listos o declarados <strong>31</strong></p><p><i className="legend-progress" />En proceso <strong>9</strong></p><p><i className="legend-pending" />Pendientes <strong>5</strong></p><p><i className="legend-blocked" />Bloqueados <strong>3</strong></p></div></div>
+        <div className="progress-overview"><div className="progress-ring" style={{ background: `radial-gradient(closest-side,#fff 75%,transparent 76%),conic-gradient(var(--green) ${completion}%,#edf0ed 0)` }}><strong>{completion}%</strong><span>completado</span></div><div className="progress-legend"><p><i className="legend-ready" />Pagada / Enviada <strong>{completed}</strong></p><p><i className="legend-progress" />Cargada / Informada <strong>{loaded + informed}</strong></p><p><i className="legend-pending" />Pendiente / Sin estado <strong>{pending}</strong></p><p><i className="legend-blocked" />Revisión requerida <strong>{blocked}</strong></p></div></div>
       </section>
-      <section className="control-card"><CardHead title="Renta · AT 2026" subtitle="Último cierre anual" /><div className="annual-score"><span>42 / 48</span><strong>F22 enviados</strong><div><i style={{ width: '87.5%' }} /></div><small>6 clientes con trabajo pendiente</small></div></section>
+      <section className="control-card"><CardHead title="Renta · AT 2026" subtitle="Módulo en preparación" /><div className="annual-score"><span>—</span><strong>Sin datos F22 importados</strong><div><i style={{ width: '0%' }} /></div><small>La estructura anual está disponible para la siguiente fase</small></div></section>
       <section className="control-card span-two"><CardHead title="Atención requerida" subtitle="Clientes con bloqueos o atrasos" action={<button>Ver todos</button>} />
-        <div className="attention-list">{rows.filter(r => ['B', 'E', 'H'].includes(r.statusCode)).slice(0, 3).map(r => <button key={r.id} onClick={() => go('client', r)}><EmptyAvatar initials={r.initials} /><span><strong>{r.name}</strong><small>{r.observation || 'Declaración aún no iniciada'}</small></span><Pill value={r.statusLabel}>{r.statusLabel}</Pill><ArrowRight size={16} /></button>)}</div>
+        <div className="attention-list">{rows.filter(r => ['B', 'E', 'H'].includes(r.statusCode ?? '')).slice(0, 3).map(r => <button key={r.id} onClick={() => go('client', r)}><EmptyAvatar initials={r.initials} /><span><strong>{r.name}</strong><small>{r.observation || 'Declaración aún no iniciada'}</small></span><Pill value={r.statusLabel}>{r.statusLabel}</Pill><ArrowRight size={16} /></button>)}</div>
       </section>
-      <section className="control-card"><CardHead title="Actividad reciente" subtitle="Actualizaciones del equipo" /><ul className="activity-feed"><li><EmptyAvatar initials="DP" /><span><strong>Diego declaró F29</strong><small>Inversiones Río Claro · hace 24 min</small></span></li><li><EmptyAvatar initials="SM" /><span><strong>Sofía agregó observación</strong><small>Servicios Médicos Aurora · hace 2 h</small></span></li><li><span className="activity-system"><Cloud size={15} /></span><span><strong>Escaneo Drive completado</strong><small>12 archivos nuevos · hace 3 h</small></span></li></ul></section>
+      <section className="control-card"><CardHead title="Datos sincronizados" subtitle="Supabase · período actual" /><ul className="activity-feed"><li><span className="activity-system"><Cloud size={15} /></span><span><strong>{rows.length} clientes cargados</strong><small>{periods.length} períodos F29 disponibles</small></span></li><li><span className="activity-system"><ShieldCheck size={15} /></span><span><strong>Credenciales excluidas</strong><small>Solo metadatos operacionales</small></span></li></ul></section>
     </div>
   </div>;
 }
@@ -152,7 +179,7 @@ function F29Dashboard({ rows, updateRow, go }: { rows: ClientRow[]; updateRow: (
     </div>
     <section className="operations-card">
       <div className="table-toolbar f29-toolbar"><div className="toolbar-search"><Search size={16} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar por RUT o razón social…" /></div><select aria-label="Filtrar por estado" value={filter} onChange={event => setFilter(event.target.value)}><option value="Todos">Todos los estados</option>{Object.entries(F29_STATUS_LABELS).map(([code, label]) => <option key={code} value={code}>{code} · {label}</option>)}</select><select aria-label="Filtrar por responsable" value={responsible} onChange={event => setResponsible(event.target.value)}><option>Todos</option>{responsibles.map(name => <option key={name}>{name}</option>)}</select><button className={`filter-button ${onlyObserved ? 'active' : ''}`} onClick={() => setOnlyObserved(value => !value)}><SlidersHorizontal size={15} /> Con observación</button></div>
-      <div className="table-scroll"><table className="ops-table f29-ops-table"><thead><tr><th>RUT</th><th className="sticky-client">Razón social</th><th>Responsable</th><th>Monto</th><th>Fecha</th><th>Estado</th><th>Vence</th><th>Observación</th><th>Docs</th><th>Última actualización</th></tr></thead><tbody>{filtered.map(row => <tr key={row.id}><td><strong>{row.rut}</strong></td><td className="sticky-client"><button className="client-cell" onClick={() => go('client', row)}><strong>{row.name}</strong></button></td><td><select className="inline-select" aria-label={`Responsable de ${row.name}`} value={row.accountant} onChange={event => updateRow(row.id, { accountant: event.target.value })}>{responsibles.map(name => <option key={name}>{name}</option>)}</select></td><td><input className="inline-number" aria-label={`Monto de ${row.name}`} type="number" value={row.amount ?? ''} onChange={event => updateRow(row.id, { amount: event.target.value ? Number(event.target.value) : null })} /></td><td><input className="inline-date" aria-label={`Fecha de ${row.name}`} type="date" value={row.filedDate ?? ''} onChange={event => updateRow(row.id, { filedDate: event.target.value || null })} /></td><td><select className={`inline-status ${statusClass[row.statusLabel]}`} aria-label={`Estado de ${row.name}`} value={row.statusCode} onChange={event => updateStatus(row, event.target.value as F29StatusCode)}>{Object.entries(F29_STATUS_LABELS).map(([code, label]) => <option key={code} value={code}>{code} · {label}</option>)}</select></td><td><span className="due-day">Día {row.dueDay ?? '—'}</span></td><td><input className="inline-note" value={row.observation} placeholder="Agregar observación…" onChange={event => updateRow(row.id, { observation: event.target.value })} /></td><td><button className="document-count"><Files size={14} />{row.documents}</button></td><td>{row.updated}</td></tr>)}</tbody></table></div>
+      <div className="table-scroll"><table className="ops-table f29-ops-table"><thead><tr><th>RUT</th><th className="sticky-client">Razón social</th><th>Responsable</th><th>Monto</th><th>Fecha</th><th>Estado</th><th>Vence</th><th>Observación</th><th>Docs</th><th>Última actualización</th></tr></thead><tbody>{filtered.map(row => <tr key={row.id}><td><strong>{row.rut}</strong></td><td className="sticky-client"><button className="client-cell" onClick={() => go('client', row)}><strong>{row.name}</strong></button></td><td><select className="inline-select" aria-label={`Responsable de ${row.name}`} value={row.accountant} onChange={event => updateRow(row.id, { accountant: event.target.value })}>{responsibles.map(name => <option key={name}>{name}</option>)}</select></td><td><input className="inline-number" aria-label={`Monto de ${row.name}`} type="number" value={row.amount ?? ''} onChange={event => updateRow(row.id, { amount: event.target.value ? Number(event.target.value) : null })} /></td><td><input className="inline-date" aria-label={`Fecha de ${row.name}`} type="date" value={row.filedDate ?? ''} onChange={event => updateRow(row.id, { filedDate: event.target.value || null })} /></td><td><select className={`inline-status ${statusClass[row.statusLabel]}`} aria-label={`Estado de ${row.name}`} value={row.statusCode ?? ''} onChange={event => updateStatus(row, event.target.value as F29StatusCode)}><option value="" disabled>— Sin estado</option>{Object.entries(F29_STATUS_LABELS).map(([code, label]) => <option key={code} value={code}>{code} · {label}</option>)}</select></td><td><span className="due-day">Día {row.dueDay ?? '—'}</span></td><td><input className="inline-note" value={row.observation} placeholder="Agregar observación…" onChange={event => updateRow(row.id, { observation: event.target.value })} /></td><td><button className="document-count"><Files size={14} />{row.documents}</button></td><td>{row.updated}</td></tr>)}</tbody></table></div>
       <footer className="table-footer"><span>Mostrando {filtered.length} de {rows.length} clientes</span><span>Los cambios se guardan automáticamente</span></footer>
     </section>
   </div>;
@@ -172,10 +199,12 @@ function F22Dashboard() {
 
 function ClientProfile({ client }: { client: ClientRow }) {
   const [tab, setTab] = useState('Resumen');
-  return <div className="control-content"><div className="client-profile-head"><div className="client-monogram">{client.name.charAt(0)}</div><div><span>Cliente activo</span><h1>{client.name}</h1><p>{client.rut} · {client.accountant}</p></div><div className="page-actions"><button className="button-ghost"><FolderOpen size={16} /> Abrir Drive</button><button className="button-dark">Editar cliente</button></div></div><nav className="profile-tabs">{['Resumen', 'F29 mensual', 'Renta / F22', 'Documentos', 'Observaciones', 'Actividad'].map(item => <button className={tab === item ? 'active' : ''} onClick={() => setTab(item)} key={item}>{item}{item === 'Documentos' && <em>{docs.length}</em>}</button>)}</nav>{tab === 'Documentos' ? <Documents /> : tab === 'Actividad' ? <ActivityPanel client={client} /> : <ClientSummary client={client} />}</div>;
+  const [history, setHistory] = useState<PeriodHistory[]>([]);
+  useEffect(() => { void loadClientHistory(client.id).then(setHistory).catch(() => setHistory([])); }, [client.id]);
+  return <div className="control-content"><div className="client-profile-head"><div className="client-monogram">{client.name.charAt(0)}</div><div><span>Cliente activo</span><h1>{client.name}</h1><p>{client.rut} · {client.accountant}</p></div><div className="page-actions"><button className="button-ghost"><FolderOpen size={16} /> Abrir Drive</button><button className="button-dark">Editar cliente</button></div></div><nav className="profile-tabs">{['Resumen', 'F29 mensual', 'Renta / F22', 'Documentos', 'Observaciones', 'Actividad'].map(item => <button className={tab === item ? 'active' : ''} onClick={() => setTab(item)} key={item}>{item}{item === 'Documentos' && <em>{docs.length}</em>}</button>)}</nav>{tab === 'Documentos' ? <Documents /> : tab === 'Actividad' ? <ActivityPanel client={client} /> : <ClientSummary client={client} history={history} />}</div>;
 }
 
-function ClientSummary({ client }: { client: ClientRow }) { const history = ['D', 'D', 'F', 'D', 'C', client.statusCode] as F29StatusCode[]; return <div className="profile-grid"><section className="control-card"><CardHead title="F29 · Mayo 2026" subtitle="Período actual" /><div className="profile-status"><Pill value={client.statusLabel}>{client.statusLabel}</Pill><strong>{client.amount === null ? '—' : new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(client.amount)}</strong><span>{client.filedDate ? `Presentado ${client.filedDate}` : 'Fecha pendiente'}</span></div></section><section className="control-card"><CardHead title="Renta · AT 2026" subtitle="Estructura preparada" /><div className="profile-status"><Pill value="Pendiente">Próxima temporada</Pill><strong>—</strong><span>sin datos anuales todavía</span></div></section><section className="control-card span-two"><CardHead title="Historial F29" subtitle="Últimos seis períodos" /><div className="history-row">{['Dic', 'Ene', 'Feb', 'Mar', 'Abr', 'May'].map((month, index) => <div key={month}><span>{month}</span><i className={history[index] === 'B' || history[index] === 'H' ? 'blocked' : 'done'}>{history[index]}</i><small>{F29_STATUS_LABELS[history[index]]}</small></div>)}</div></section><section className="control-card span-two"><CardHead title="Observaciones" subtitle="Notas operativas del equipo" action={<button>+ Agregar</button>} /><div className="observation-box"><EmptyAvatar initials={client.initials} /><div><strong>{client.accountant}</strong><p>{client.observation || 'Cliente al día. Sin observaciones pendientes para este período.'}</p><small>Actualizado {client.updated.toLowerCase()}</small></div></div></section></div>; }
+function ClientSummary({ client, history }: { client: ClientRow; history: PeriodHistory[] }) { const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']; return <div className="profile-grid"><section className="control-card"><CardHead title="F29 · Mayo 2026" subtitle="Período actual" /><div className="profile-status"><Pill value={client.statusLabel}>{client.statusLabel}</Pill><strong>{client.amount === null ? '—' : new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(client.amount)}</strong><span>{client.filedDate ? `Presentado ${client.filedDate}` : 'Fecha pendiente'}</span></div></section><section className="control-card"><CardHead title="Renta · AT 2026" subtitle="Estructura preparada" /><div className="profile-status"><Pill value="Pendiente">Próxima temporada</Pill><strong>—</strong><span>sin datos anuales todavía</span></div></section><section className="control-card span-two"><CardHead title="Historial F29" subtitle="Últimos seis períodos" /><div className="history-row">{history.slice(0, 6).map(period => <div key={period.id}><span>{monthNames[period.month - 1]} {String(period.year).slice(-2)}</span><i className={period.status_code === 'B' || period.status_code === 'H' ? 'blocked' : 'done'}>{period.status_code ?? '—'}</i><small>{period.status_label ?? 'Sin estado'}</small></div>)}</div>{!history.length && <p className="empty-history">Sin períodos F29 registrados.</p>}</section><section className="control-card span-two"><CardHead title="Observaciones" subtitle="Notas operativas del equipo" action={<button>+ Agregar</button>} /><div className="observation-box"><EmptyAvatar initials={client.initials} /><div><strong>{client.accountant}</strong><p>{client.observation || 'Cliente al día. Sin observaciones pendientes para este período.'}</p><small>Actualizado {client.updated.toLowerCase()}</small></div></div></section></div>; }
 
 function Documents() { const [scanning, setScanning] = useState(false); return <section className="operations-card documents-panel"><div className="documents-head"><div><h2>Documentos en Google Drive</h2><p>Archivos sincronizados desde la carpeta del cliente.</p></div><button className="button-dark" onClick={() => { setScanning(true); setTimeout(() => setScanning(false), 1000); }}><Cloud size={16} />{scanning ? 'Escaneando…' : 'Escanear carpeta'}</button></div><table className="ops-table"><thead><tr><th>Archivo</th><th>Tipo</th><th>Modificado</th><th>Período</th><th>Estado</th><th /></tr></thead><tbody>{docs.map(doc => <tr key={doc.name}><td><span className="file-name"><FileSpreadsheet size={18} /><span><strong>{doc.name}</strong><small>{doc.mime}</small></span></span></td><td><Pill value="Listo">{doc.type}</Pill></td><td>{doc.modified}</td><td>{doc.period}</td><td><Pill value={doc.status === 'Procesado' ? 'Declarado' : 'Pendiente'}>{doc.status}</Pill></td><td><button className="drive-button">Abrir en Drive <ArrowRight size={13} /></button></td></tr>)}</tbody></table></section>; }
 

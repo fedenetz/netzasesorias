@@ -41,6 +41,7 @@
 .avatar { display:inline-grid; flex:0 0 auto; width:30px; height:30px; place-items:center; color:#fff; background:#536d56; border-radius:50%; font-size:10px; font-weight:800; }
 .preview-badge { padding:4px 8px; color:#6d5923; background:#fff7da; border-radius:4px; font-size:10px; font-weight:800; text-transform:uppercase; }
 .control-content { width:min(1220px,calc(100% - 52px)); margin:0 auto; padding:34px 0 60px; }
+.control-data-state { display:flex; align-items:center; justify-content:center; gap:9px; min-height:calc(100vh - 68px); color:#6c7580; font-weight:750; }.control-data-state.is-error{color:#c9343e}
 .wide-content { width:calc(100% - 44px); max-width:1500px; }
 .control-page-head { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; margin-bottom:25px; }
 .control-page-head>div:first-child>span,.client-profile-head>div:nth-child(2)>span { color:#7d858e; font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }

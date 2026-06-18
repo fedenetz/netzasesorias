@@ -10,6 +10,7 @@ import { ServiceDetailPage } from './pages/ServiceDetailPage.jsx';
 import { ServiciosPage } from './pages/ServiciosPage.jsx';
 import { seo } from './data/seo.js';
 import { getServiceBySlug } from './data/services.js';
+import { AdminGate } from './admin/AdminGate.tsx';
 
 const routes = {
   '/': { page: <HomePage />, seo: seo.home },
@@ -43,6 +44,17 @@ function getRoute() {
 }
 
 export default function App() {
+  const path = window.location.pathname.replace(/\/$/, '') || '/';
+
+  if (path === '/admin') {
+    window.history.replaceState({}, '', '/control');
+    return <AdminGate />;
+  }
+
+  if (path.startsWith('/control') || path.startsWith('/f29/') || path.startsWith('/f22/') || path === '/clients' || path.startsWith('/clients/')) {
+    return <AdminGate />;
+  }
+
   const current = getRoute();
 
   return (

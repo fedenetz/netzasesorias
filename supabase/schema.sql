@@ -25,6 +25,8 @@ create table public.clients (
   has_credentials boolean not null default false,
   assigned_user_id uuid references public.profiles(id),
   drive_folder_id text unique,
+  f29_enabled boolean not null default true,
+  f22_enabled boolean not null default false,
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -96,11 +98,52 @@ create table public.documents (
   updated_at timestamptz not null default now()
 );
 
+create table public.f22_periods (
+  id uuid primary key default gen_random_uuid(),
+  client_id uuid not null references public.clients(id) on delete cascade,
+  tax_year integer not null check (tax_year between 2000 and 2100),
+  prepared_to_send boolean not null default false,
+  sent boolean not null default false,
+  saved boolean not null default false,
+  refund_amount numeric(16, 0),
+  payment_amount numeric(16, 0),
+  filed_date date,
+  review_status text,
+  tax_regime text,
+  regime_detail text,
+  old_tax_regime text,
+  accounting_number text,
+  bce_date date,
+  bce_status text,
+  f22_ready boolean,
+  f22_sent boolean,
+  dj_1948 boolean,
+  dj_1948_sent boolean,
+  dj_1949 boolean,
+  provisional boolean,
+  utility_loss_text text,
+  utility_loss_amount numeric(16, 0),
+  dividends_text text,
+  dividends_amount numeric(16, 0),
+  partners text,
+  refund_payment_text text,
+  observation text,
+  responsible_user_id uuid references public.profiles(id),
+  responsible_name text,
+  source_sheet text,
+  source_row integer,
+  imported_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(client_id, tax_year)
+);
+
 create table public.observations (
   id uuid primary key default gen_random_uuid(),
   client_id uuid not null references public.clients(id) on delete cascade,
   period_id uuid references public.periods(id) on delete cascade,
   f29_period_id uuid references public.f29_periods(id) on delete cascade,
+  f22_period_id uuid references public.f22_periods(id) on delete cascade,
   body text not null,
   is_resolved boolean not null default false,
   created_by uuid not null references public.profiles(id),
@@ -124,6 +167,7 @@ create table public.activity_log (
 
 create index periods_dashboard_idx on public.periods(kind, period_year, period_month, status);
 create index f29_dashboard_idx on public.f29_periods(year, month, status_code, responsible_user_id);
+create index f22_dashboard_idx on public.f22_periods(tax_year, f22_sent, bce_status, responsible_user_id);
 create index clients_assigned_idx on public.clients(assigned_user_id) where is_active;
 create index documents_client_idx on public.documents(client_id, modified_at desc);
 create index activity_client_idx on public.activity_log(client_id, created_at desc);
@@ -137,6 +181,7 @@ alter table public.clients enable row level security;
 alter table public.periods enable row level security;
 alter table public.period_status_fields enable row level security;
 alter table public.f29_periods enable row level security;
+alter table public.f22_periods enable row level security;
 alter table public.documents enable row level security;
 alter table public.observations enable row level security;
 alter table public.activity_log enable row level security;
@@ -148,6 +193,7 @@ create policy "employees write clients" on public.clients for all using (public.
 create policy "employees manage periods" on public.periods for all using (public.is_active_employee()) with check (public.is_active_employee());
 create policy "employees manage fields" on public.period_status_fields for all using (public.is_active_employee()) with check (public.is_active_employee());
 create policy "employees manage f29 periods" on public.f29_periods for all using (public.is_active_employee()) with check (public.is_active_employee());
+create policy "employees manage f22 periods" on public.f22_periods for all using (public.is_active_employee()) with check (public.is_active_employee());
 create policy "employees manage documents" on public.documents for all using (public.is_active_employee()) with check (public.is_active_employee());
 create policy "employees manage observations" on public.observations for all using (public.is_active_employee()) with check (public.is_active_employee());
 create policy "employees read activity" on public.activity_log for select using (public.is_active_employee());

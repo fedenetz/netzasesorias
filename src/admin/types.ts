@@ -20,6 +20,8 @@ export interface ClientRow {
   hasCredentials?: boolean;
   driveFolderId?: string | null;
   isActive?: boolean;
+  f29Enabled: boolean;
+  f22Enabled: boolean;
   accountant: string;
   initials: string;
   year: number;
@@ -66,4 +68,38 @@ export interface ActivityEntry {
   afterData: Record<string, unknown> | null;
   createdAt: string;
   actor: string;
+}
+
+export interface F22Row {
+  id: string;
+  clientId: string;
+  rut: string;
+  name: string;
+  taxYear: number;
+  preparedToSend: boolean;
+  sent: boolean;
+  saved: boolean;
+  refundAmount: number | null;
+  paymentAmount: number | null;
+  filedDate: string | null;
+  reviewStatus: string;
+  taxRegime: string;
+  regimeDetail: string;
+  bceDate: string | null;
+  bceStatus: string;
+  f22Ready: boolean | null;
+  f22Sent: boolean;
+  dj1948: boolean | null;
+  dj1948Sent: boolean | null;
+  dj1949: boolean | null;
+  provisional: boolean | null;
+  utilityLossText: string;
+  utilityLossAmount: number | null;
+  dividendsText: string;
+  dividendsAmount: number | null;
+  partners: string;
+  refundPaymentText: string;
+  observation: string;
+  responsibleName: string;
+  updatedAt: string;
 }

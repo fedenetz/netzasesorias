@@ -11,6 +11,8 @@
     "import:f29:commit": "tsx scripts/import-f29.ts --commit",
     "import:drive-folders": "tsx scripts/import-drive-folders.ts",
     "import:drive-folders:commit": "tsx scripts/import-drive-folders.ts --commit",
+    "import:f22": "tsx scripts/import-f22.ts",
+    "import:f22:commit": "tsx scripts/import-f22.ts --commit",
     "test:importer": "tsx --test scripts/*.test.ts"
   },
   "dependencies": {

@@ -9,6 +9,8 @@ type ClientRecord = {
   has_credentials: boolean;
   drive_folder_id: string | null;
   is_active: boolean;
+  f29_enabled: boolean;
+  f22_enabled: boolean;
   assigned_user_id: string | null;
   updated_at: string;
 };
@@ -37,7 +39,7 @@ const lastUpdated = (value: string) => new Intl.DateTimeFormat('es-CL', { day: '
 export async function loadAdminRows(year: number, month: number): Promise<ClientRow[]> {
   if (!supabase) return [];
   const [clientsResult, periodsResult, profilesResult, documentsResult] = await Promise.all([
-    supabase.from('clients').select('id,rut,legal_name,accounting_code,has_credentials,drive_folder_id,is_active,assigned_user_id,updated_at').eq('is_active', true).order('legal_name'),
+    supabase.from('clients').select('id,rut,legal_name,accounting_code,has_credentials,drive_folder_id,is_active,f29_enabled,f22_enabled,assigned_user_id,updated_at').eq('is_active', true).order('legal_name'),
     supabase.from('f29_periods').select('id,client_id,year,month,amount,filed_date,status_code,status_label,due_day,responsible_user_id,responsible_name,observation,updated_at').eq('year', year).eq('month', month),
     supabase.from('profiles').select('id,full_name').eq('is_active', true),
     supabase.from('documents').select('client_id,mime_type'),
@@ -64,6 +66,8 @@ export async function loadAdminRows(year: number, month: number): Promise<Client
       hasCredentials: client.has_credentials,
       driveFolderId: client.drive_folder_id,
       isActive: client.is_active,
+      f29Enabled: client.f29_enabled,
+      f22Enabled: client.f22_enabled,
       accountant,
       initials: initials(accountant),
       year,

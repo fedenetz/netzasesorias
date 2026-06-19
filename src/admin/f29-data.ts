@@ -36,6 +36,9 @@ type PeriodRecord = {
   paid_at: string | null;
   payment_method: string | null;
   payment_notes: string | null;
+  tax_paid: boolean;
+  tax_paid_at: string | null;
+  last_payment_reminder_at: string | null;
   updated_at: string;
 };
 
@@ -44,20 +47,25 @@ export type PeriodHistory = Pick<PeriodRecord, 'id' | 'year' | 'month' | 'amount
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).map(part => part[0]).join('').slice(0, 2).toUpperCase() || '—';
 const lastUpdated = (value: string) => new Intl.DateTimeFormat('es-CL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
 
-export async function loadAdminRows(year: number, month: number): Promise<ClientRow[]> {
+export async function loadAdminRows(year: number, month: number, includeAdminObservation = false): Promise<ClientRow[]> {
   if (!supabase) return [];
-  const [clientsResult, periodsResult, profilesResult, documentsResult] = await Promise.all([
+  const previousMonth = month === 1 ? 12 : month - 1;
+  const previousYear = month === 1 ? year - 1 : year;
+  const [clientsResult, periodsResult, previousPeriodsResult, profilesResult, documentsResult] = await Promise.all([
     supabase.from('clients').select('id,rut,legal_name,accounting_code,has_credentials,drive_folder_id,is_active,f29_enabled,f22_enabled,assigned_user_id,updated_at').eq('is_active', true).order('legal_name'),
-    supabase.from('f29_periods').select('id,client_id,year,month,amount,filed_date,status_code,status_label,due_day,responsible_user_id,responsible_name,observation,email_status,sent_at,billing_status,billing_amount,billing_due_date,paid_at,payment_method,payment_notes,updated_at').eq('year', year).eq('month', month),
+    supabase.from('f29_periods').select('id,client_id,year,month,amount,filed_date,status_code,status_label,due_day,responsible_user_id,responsible_name,observation,email_status,sent_at,billing_status,billing_amount,billing_due_date,paid_at,payment_method,payment_notes,tax_paid,tax_paid_at,last_payment_reminder_at,updated_at').eq('year', year).eq('month', month),
+    supabase.from('f29_periods').select('client_id,amount').eq('year', previousYear).eq('month', previousMonth),
     supabase.from('profiles').select('id,full_name').eq('is_active', true),
     supabase.from('documents').select('client_id,mime_type'),
   ]);
   if (clientsResult.error) throw clientsResult.error;
   if (periodsResult.error) throw periodsResult.error;
+  if (previousPeriodsResult.error) throw previousPeriodsResult.error;
   if (profilesResult.error) throw profilesResult.error;
   if (documentsResult.error) throw documentsResult.error;
 
   const periods = new Map((periodsResult.data as PeriodRecord[]).map(period => [period.client_id, period]));
+  const previousAmounts = new Map((previousPeriodsResult.data ?? []).map(period => [period.client_id, period.amount === null ? null : Number(period.amount)]));
   const profiles = new Map((profilesResult.data ?? []).map(profile => [profile.id, profile.full_name ?? 'Sin asignar']));
   const documentCounts = (documentsResult.data ?? []).filter(document => document.mime_type !== 'application/vnd.google-apps.folder').reduce((counts, document) => counts.set(document.client_id, (counts.get(document.client_id) ?? 0) + 1), new Map<string, number>());
 
@@ -81,9 +89,10 @@ export async function loadAdminRows(year: number, month: number): Promise<Client
       year,
       month,
       amount: period?.amount === null || period?.amount === undefined ? null : Number(period.amount),
+      previousAmount: previousAmounts.get(client.id) ?? null,
       filedDate: period?.filed_date ?? null,
       statusCode,
-      statusLabel: period?.status_label || (statusCode ? F29_STATUS_LABELS[statusCode] : 'Sin estado'),
+      statusLabel: statusCode ? F29_STATUS_LABELS[statusCode] : 'Sin estado',
       dueDay: period?.due_day ?? null,
       observation: period?.observation ?? '',
       emailStatus: period?.email_status ?? 'not_sent',
@@ -94,6 +103,9 @@ export async function loadAdminRows(year: number, month: number): Promise<Client
       paidAt: period?.paid_at ?? null,
       paymentMethod: period?.payment_method ?? '',
       paymentNotes: period?.payment_notes ?? '',
+      taxPaid: period?.tax_paid ?? statusCode === 'D',
+      taxPaidAt: period?.tax_paid_at ?? null,
+      taxLastReminderAt: period?.last_payment_reminder_at ?? null,
       documents: documentCounts.get(client.id) ?? 0,
       updated: lastUpdated(period?.updated_at ?? client.updated_at),
     };

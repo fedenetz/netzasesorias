@@ -4,13 +4,13 @@ export type BillingStatus = 'not_applicable' | 'pending' | 'sent' | 'paid' | 'ov
 
 export const F29_STATUS_LABELS: Record<F29StatusCode, string> = {
   A: 'Cargada',
-  B: 'Error Dig.',
+  B: 'Error e-dig',
   C: 'Informada',
   D: 'Pagada / Enviada',
   E: 'Pendiente',
-  F: 'S/ Movi.',
+  F: 'Sin movimiento',
   G: 'Postergado',
-  H: 'Rev. por Scarlen',
+  H: 'Revisión requerida',
 };
 
 export interface ClientRow {
@@ -29,6 +29,7 @@ export interface ClientRow {
   year: number;
   month: number;
   amount: number | null;
+  previousAmount: number | null;
   filedDate: string | null;
   statusCode: F29StatusCode | null;
   statusLabel: string;
@@ -42,6 +43,9 @@ export interface ClientRow {
   paidAt: string | null;
   paymentMethod: string;
   paymentNotes: string;
+  taxPaid: boolean;
+  taxPaidAt: string | null;
+  taxLastReminderAt: string | null;
   documents: number;
   updated: string;
 }

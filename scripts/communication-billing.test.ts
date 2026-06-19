@@ -32,3 +32,14 @@ test('migration includes the core tables, audited RPCs, RLS, and private bucket'
   assert.doesNotMatch(sql, /\bend\s+\$\$/i, 'PL/pgSQL blocks must terminate END with a semicolon before the dollar quote');
   assert.doesNotMatch(sql, /sii_password|certificate_password|raw_credentials/i);
 });
+
+test('F29 operations refinement separates tax payment from billing', () => {
+  const sql = readFileSync(join(process.cwd(), 'supabase/migrations/20260620_refine_f29_operations.sql'), 'utf8');
+  assert.match(sql, /add column if not exists tax_paid boolean/);
+  assert.match(sql, /add column if not exists last_payment_reminder_at/);
+  assert.match(sql, /'f29_payment_reminder'/);
+  assert.match(sql, /create or replace function public\.update_f29_admin_observation/);
+  assert.match(sql, /role = 'admin'/);
+  assert.match(sql, /f29_payment_reminder_sent/);
+  assert.doesNotMatch(sql, /\bend\s+\$\$/i);
+});

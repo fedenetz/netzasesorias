@@ -15,6 +15,7 @@ import { addClientObservation, classifyDocument, DriveAuthorizationError, loadCl
 import { connectGoogleDrive, supabase } from './supabase';
 import { BillingDashboard, BillingDetailsModal, ClientContactsPanel, EmailComposer, EmailStatusBadge, StatusBadge } from './billing-ui';
 import { effectiveBillingStatus } from './billing-utils';
+import { F29OperationsDashboard } from './f29-operations-ui';
 
 type Screen = 'dashboard' | 'clients' | 'f29' | 'f22' | 'billing' | 'client';
 
@@ -43,7 +44,7 @@ function Pill({ children, value }: { children: React.ReactNode; value?: string }
 
 function EmptyAvatar({ initials }: { initials: string }) { return <span className="avatar">{initials}</span>; }
 
-export function AdminApp({ user, preview }: { user: User | null; preview: boolean }) {
+export function AdminApp({ user, preview, role }: { user: User | null; preview: boolean; role: 'admin' | 'accountant' | 'viewer' }) {
   const initialPath = window.location.pathname;
   const periodMatch = initialPath.match(/\/f29\/(\d{4})\/(\d{1,2})/);
   const initialYear = periodMatch ? Number(periodMatch[1]) : 2026;
@@ -60,7 +61,7 @@ export function AdminApp({ user, preview }: { user: User | null; preview: boolea
 
   useEffect(() => {
     if (preview) return;
-    loadAdminRows(activeYear, activeMonth).then(liveRows => {
+    loadAdminRows(activeYear, activeMonth, role === 'admin').then(liveRows => {
       setRows(liveRows);
       const routeRut = decodeURIComponent(window.location.pathname.replace('/clients/', ''));
       setSelected(liveRows.find(row => row.rut === routeRut) ?? liveRows[0] ?? null);
@@ -69,7 +70,7 @@ export function AdminApp({ user, preview }: { user: User | null; preview: boolea
       setDataError(error instanceof Error ? error.message : 'No fue posible cargar los datos de Supabase.');
       setDataLoading(false);
     });
-  }, [activeMonth, activeYear, preview]);
+  }, [activeMonth, activeYear, preview, role]);
 
   const go = (next: Screen, client?: ClientRow) => {
     if (client) setSelected(client);
@@ -86,7 +87,7 @@ export function AdminApp({ user, preview }: { user: User | null; preview: boolea
 
   const reloadRows = async () => {
     if (preview) return;
-    const liveRows = await loadAdminRows(activeYear, activeMonth);
+    const liveRows = await loadAdminRows(activeYear, activeMonth, role === 'admin');
     setRows(liveRows);
     setSelected(current => current ? liveRows.find(row => row.id === current.id) ?? current : liveRows[0] ?? null);
   };
@@ -143,7 +144,7 @@ export function AdminApp({ user, preview }: { user: User | null; preview: boolea
         {dataLoading && <div className="control-data-state">Cargando datos de Supabase…</div>}
         {dataError && <div className="control-data-state is-error"><AlertTriangle size={18} />{dataError}</div>}
         {!dataLoading && !dataError && screen === 'dashboard' && <Dashboard rows={rows} go={go} year={activeYear} month={activeMonth} />}
-        {!dataLoading && !dataError && screen === 'f29' && <F29DashboardV2 rows={rows.filter(row => row.f29Enabled)} updateRow={updateRow} go={go} year={activeYear} month={activeMonth} navigatePeriod={navigatePeriod} saveStates={saveStates} reload={reloadRows} />}
+        {!dataLoading && !dataError && screen === 'f29' && <F29OperationsDashboard rows={rows.filter(row => row.f29Enabled)} updateRow={updateRow} openClient={row => go('client', row)} year={activeYear} month={activeMonth} navigatePeriod={navigatePeriod} saveStates={saveStates} reload={reloadRows} isAdmin={role === 'admin'} />}
         {!dataLoading && !dataError && screen === 'f22' && <F22DashboardLive initialTaxYear={Number(initialPath.match(/\/f22\/(\d{4})/)?.[1] ?? 2026)} openClient={clientId => { const client = rows.find(row => row.id === clientId); if (client) go('client', client); }} />}
         {!dataLoading && !dataError && screen === 'clients' && <ClientsIndexV2 rows={rows} go={go} reload={reloadRows} />}
         {!dataLoading && !dataError && screen === 'billing' && <BillingDashboard />}

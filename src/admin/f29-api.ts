@@ -11,7 +11,8 @@ export async function persistF29Change(row: ClientRow, patch: Partial<ClientRow>
     dbPatch.status_code = patch.statusCode;
     dbPatch.status_label = patch.statusLabel;
   }
-  if ('observation' in patch) dbPatch.observation = patch.observation;
+  if ('taxPaid' in patch) dbPatch.tax_paid = patch.taxPaid;
+  if ('taxPaidAt' in patch) dbPatch.tax_paid_at = patch.taxPaidAt || null;
   if ('accountant' in patch) dbPatch.responsible_name = patch.accountant;
 
   const query = row.periodId
@@ -19,6 +20,10 @@ export async function persistF29Change(row: ClientRow, patch: Partial<ClientRow>
     : supabase.from('f29_periods').upsert({ client_id: row.id, year: row.year, month: row.month, ...dbPatch }, { onConflict: 'client_id,year,month' });
   const { data: period, error } = await query.select('id,client_id').single();
   if (error) throw error;
+  if ('observation' in patch) {
+    const { error: observationError } = await supabase.rpc('update_f29_admin_observation', { p_f29_period_id: period.id, p_observation: patch.observation ?? '' });
+    if (observationError) throw observationError;
+  }
   const billingChanged = ['billingAmount', 'billingDueDate', 'billingStatus', 'paidAt', 'paymentMethod', 'paymentNotes'].some(key => key in patch);
   if (billingChanged) {
     const status = patch.billingStatus ?? row.billingStatus;
@@ -34,6 +39,9 @@ export async function persistF29Change(row: ClientRow, patch: Partial<ClientRow>
     if (billingError) throw billingError;
   }
   const { data: { user } } = await supabase.auth.getUser();
+  const loggedPatch = { ...patch };
+  delete loggedPatch.observation;
+  if (!Object.keys(loggedPatch).length) return period.id as string;
   const { error: logError } = await supabase.from('activity_log').insert({
     actor_id: user?.id,
     client_id: period.client_id,
@@ -42,7 +50,7 @@ export async function persistF29Change(row: ClientRow, patch: Partial<ClientRow>
     entity_type: 'f29_period',
     entity_id: period.id,
     before_data: beforeData,
-    after_data: patch,
+    after_data: loggedPatch,
   });
   if (logError) throw logError;
   return period.id as string;

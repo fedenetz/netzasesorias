@@ -7,6 +7,7 @@ import { isSupabaseConfigured, signInWithGoogle, supabase } from './supabase';
 export function AdminGate() {
   const [session, setSession] = useState<Session | null>(null);
   const [authorized, setAuthorized] = useState<boolean | null>(null);
+  const [role, setRole] = useState<'admin' | 'accountant' | 'viewer'>('viewer');
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const preview = import.meta.env.DEV && (!isSupabaseConfigured || new URLSearchParams(window.location.search).has('preview'));
 
@@ -20,8 +21,9 @@ export function AdminGate() {
         setLoading(false);
         return;
       }
-      const { data } = await client.from('profiles').select('is_active').eq('id', nextSession.user.id).maybeSingle();
+      const { data } = await client.from('profiles').select('is_active,role').eq('id', nextSession.user.id).maybeSingle();
       setAuthorized(Boolean(data?.is_active));
+      setRole(data?.role ?? 'viewer');
       setLoading(false);
     };
     client.auth.getSession().then(({ data }) => acceptSession(data.session));
@@ -32,7 +34,7 @@ export function AdminGate() {
   }, []);
 
   if (loading) return <div className="control-loading">Cargando entorno seguro…</div>;
-  if ((session && authorized) || preview) return <AdminApp user={session?.user ?? null} preview={preview} />;
+  if ((session && authorized) || preview) return <AdminApp user={session?.user ?? null} preview={preview} role={preview ? 'admin' : role} />;
 
   if (session && authorized === false) return (
     <main className="control-login">

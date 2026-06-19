@@ -29,7 +29,9 @@ export async function saveClientContact(contact: Omit<ClientContact, 'id'> & { i
 }
 
 export async function loadEmailTemplate(key: string): Promise<EmailTemplate> {
-  if (!supabase) return key === 'payment_reminder'
+  if (!supabase) return key === 'f29_payment_reminder'
+    ? { id: 'preview-f29-reminder', key, subject: 'Recordatorio pago F29 {{month_name}} {{year}} - {{client_name}}', bodyHtml: '<p>Estimado/a {{client_name}},</p><p>Le recordamos que se encuentra pendiente el pago de su Formulario 29 de <strong>{{month_name}} {{year}}</strong>.</p><p>Monto F29: <strong>{{amount}}</strong></p><p>Saludos cordiales,<br>{{firm_name}}</p>' }
+    : key === 'payment_reminder'
     ? { id: 'preview-reminder', key, subject: 'Recordatorio de pago - {{service_period}} - {{client_name}}', bodyHtml: '<p>Estimado/a {{client_name}},</p><p>Le recordamos el pago pendiente de <strong>{{billing_amount}}</strong>, con vencimiento {{due_date}}.</p><p>Saludos cordiales,<br>{{firm_name}}</p>' }
     : { id: 'preview-f29', key, subject: 'Formulario 29 {{month_name}} {{year}} - {{client_name}}', bodyHtml: '<p>Estimado/a {{client_name}},</p><p>Adjuntamos el resumen de su Formulario 29 de <strong>{{month_name}} {{year}}</strong>.</p><p>Monto declarado: <strong>{{amount}}</strong><br>Estado: {{payment_status}}</p><p>Saludos cordiales,<br>{{firm_name}}</p>' };
   const { data, error } = await supabase.from('email_templates').select('id,key,subject,body_html').eq('key', key).eq('active', true).single();
@@ -58,3 +60,4 @@ export const driveAttachment = (document: ClientDocument): EmailAttachment => ({
 
 export const sendF29Email = (periodId: string, to: string[], cc: string[], subject: string, bodyHtml: string, attachments: EmailAttachment[]) => invoke('send-email', { f29_period_id: periodId, to, cc, subject, body_html: bodyHtml, attachments: attachments.map(item => ({ source: item.source, document_id: item.documentId, path: item.path, file_name: item.fileName, mime_type: item.mimeType })) }, true);
 export const sendReminder = (billingItemId: string, to: string[], cc: string[], subject: string, bodyHtml: string) => invoke('send-reminder', { billing_item_id: billingItemId, to, cc, subject, body_html: bodyHtml });
+export const sendF29PaymentReminder = (periodId: string, to: string[], cc: string[], subject: string, bodyHtml: string) => invoke('send-reminder', { f29_period_id: periodId, to, cc, subject, body_html: bodyHtml });

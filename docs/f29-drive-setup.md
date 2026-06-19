@@ -1,18 +1,28 @@
 # F29 and Google Drive operations
 
-## Environment variables
+## Authentication
 
-The browser uses only the two `VITE_SUPABASE_*` variables. Netlify Functions additionally require:
+Drive scanning uses the logged-in employee's Google OAuth authorization. Downloadable service-account keys and API keys are not required.
+
+The browser uses:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+
+Netlify Functions use:
 
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
-- `GOOGLE_SERVICE_ACCOUNT_JSON`
 
-`GOOGLE_SERVICE_ACCOUNT_JSON` must contain the complete Google Cloud service-account JSON on one line. It is a server-only value and must never use a `VITE_` prefix.
+The Google OAuth client configured in Supabase must belong to a Google Cloud project where the Google Drive API is enabled. The app requests the read-only Drive scope during Google login.
 
 ## Google Drive permissions
 
-Share each client folder with the service account's `client_email` as a viewer. The Drive scanner is read-only and stores file metadata in Supabase; the files remain in Google Drive.
+Share the client folders with the employee Google accounts that will use the control center. The backend validates that the Google token email matches the authenticated Supabase employee before reading a folder.
+
+Existing employees must sign out and sign in once after this update to approve the new read-only Drive permission. If authorization expires or is missing, the Documents tab displays **Autorizar Google Drive**.
+
+Drive tokens are sent only to the Netlify Function for the current scan. They are not stored in Supabase, document metadata, or activity logs.
 
 ## Import folder IDs
 

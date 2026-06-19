@@ -3,6 +3,13 @@ import type { ActivityEntry, ClientDocument, ClientObservation, ClientRow, Docum
 
 const profileName = (value: unknown) => Array.isArray(value) ? String(value[0]?.full_name ?? 'Sistema') : String((value as { full_name?: string } | null)?.full_name ?? 'Sistema');
 
+export class DriveAuthorizationError extends Error {
+  constructor(message = 'Conecta nuevamente tu cuenta Google para autorizar la lectura de Drive.') {
+    super(message);
+    this.name = 'DriveAuthorizationError';
+  }
+}
+
 export async function loadClientDocuments(clientId: string): Promise<ClientDocument[]> {
   if (!supabase) return [];
   const { data, error } = await supabase.from('documents').select('id,drive_file_id,drive_web_view_link,file_name,mime_type,document_type,processing_status,modified_at').eq('client_id', clientId).order('modified_at', { ascending: false });
@@ -25,8 +32,18 @@ export async function scanClientDrive(clientId: string) {
   if (!supabase) throw new Error('Supabase no está configurado.');
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error('La sesión expiró.');
-  const response = await fetch('/.netlify/functions/drive-scan', { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: clientId }) });
+  if (!session.provider_token) throw new DriveAuthorizationError();
+  const response = await fetch('/.netlify/functions/drive-scan', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      'X-Google-Access-Token': session.provider_token,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ client_id: clientId }),
+  });
   const result = await response.json();
+  if (result.code === 'drive_reauth_required') throw new DriveAuthorizationError(result.error);
   if (!response.ok && response.status !== 207) throw new Error(result.error ?? 'No fue posible escanear Drive.');
   return result as { files_found: number; new_files: number; updated_files: number; errors: string[] };
 }

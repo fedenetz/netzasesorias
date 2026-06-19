@@ -40,7 +40,7 @@ export async function loadAdminRows(year: number, month: number): Promise<Client
     supabase.from('clients').select('id,rut,legal_name,accounting_code,has_credentials,drive_folder_id,is_active,assigned_user_id,updated_at').eq('is_active', true).order('legal_name'),
     supabase.from('f29_periods').select('id,client_id,year,month,amount,filed_date,status_code,status_label,due_day,responsible_user_id,responsible_name,observation,updated_at').eq('year', year).eq('month', month),
     supabase.from('profiles').select('id,full_name').eq('is_active', true),
-    supabase.from('documents').select('client_id'),
+    supabase.from('documents').select('client_id,mime_type'),
   ]);
   if (clientsResult.error) throw clientsResult.error;
   if (periodsResult.error) throw periodsResult.error;
@@ -49,7 +49,7 @@ export async function loadAdminRows(year: number, month: number): Promise<Client
 
   const periods = new Map((periodsResult.data as PeriodRecord[]).map(period => [period.client_id, period]));
   const profiles = new Map((profilesResult.data ?? []).map(profile => [profile.id, profile.full_name ?? 'Sin asignar']));
-  const documentCounts = (documentsResult.data ?? []).reduce((counts, document) => counts.set(document.client_id, (counts.get(document.client_id) ?? 0) + 1), new Map<string, number>());
+  const documentCounts = (documentsResult.data ?? []).filter(document => document.mime_type !== 'application/vnd.google-apps.folder').reduce((counts, document) => counts.set(document.client_id, (counts.get(document.client_id) ?? 0) + 1), new Map<string, number>());
 
   return (clientsResult.data as ClientRecord[]).map(client => {
     const period = periods.get(client.id);

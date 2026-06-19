@@ -12,9 +12,13 @@ export class DriveAuthorizationError extends Error {
 
 export async function loadClientDocuments(clientId: string): Promise<ClientDocument[]> {
   if (!supabase) return [];
-  const { data, error } = await supabase.from('documents').select('id,drive_file_id,drive_web_view_link,file_name,mime_type,document_type,processing_status,modified_at').eq('client_id', clientId).order('modified_at', { ascending: false });
+  const { data, error } = await supabase.from('documents').select('id,drive_file_id,drive_web_view_link,file_name,mime_type,document_type,processing_status,modified_at,drive_metadata').eq('client_id', clientId).order('modified_at', { ascending: false });
   if (error) throw error;
-  return (data ?? []).map(doc => ({ id: doc.id, driveFileId: doc.drive_file_id, driveUrl: doc.drive_web_view_link, name: doc.file_name, mimeType: doc.mime_type, type: doc.document_type, processingStatus: doc.processing_status, modifiedAt: doc.modified_at }));
+  return (data ?? []).map(doc => {
+    const metadata = doc.drive_metadata && typeof doc.drive_metadata === 'object' && !Array.isArray(doc.drive_metadata) ? doc.drive_metadata as Record<string, unknown> : {};
+    const module = metadata.module === 'f29' || metadata.module === 'f22' ? metadata.module : 'other';
+    return { id: doc.id, driveFileId: doc.drive_file_id, driveUrl: doc.drive_web_view_link, name: doc.file_name, mimeType: doc.mime_type, type: doc.document_type, processingStatus: doc.processing_status, modifiedAt: doc.modified_at, drivePath: String(metadata.path ?? doc.file_name), depth: Number(metadata.depth ?? 1), module, isFolder: doc.mime_type === 'application/vnd.google-apps.folder' };
+  });
 }
 
 export async function classifyDocument(id: string, type: DocumentKind) {
@@ -45,7 +49,7 @@ export async function scanClientDrive(clientId: string) {
   const result = await response.json();
   if (result.code === 'drive_reauth_required') throw new DriveAuthorizationError(result.error);
   if (!response.ok && response.status !== 207) throw new Error(result.error ?? 'No fue posible escanear Drive.');
-  return result as { files_found: number; new_files: number; updated_files: number; errors: string[] };
+  return result as { items_found: number; files_found: number; folders_found: number; new_files: number; updated_files: number; max_depth: number; truncated: boolean; errors: string[] };
 }
 
 export async function loadClientObservations(clientId: string): Promise<ClientObservation[]> {

@@ -45,6 +45,10 @@ export interface ClientDocument {
   type: DocumentKind;
   processingStatus: string;
   modifiedAt: string | null;
+  drivePath: string;
+  depth: number;
+  module: 'f29' | 'f22' | 'other';
+  isFolder: boolean;
 }
 
 export interface ClientObservation {

@@ -46,4 +46,7 @@ The importer ignores rows without folder IDs and does not create clients for unm
 - Editing a client without an F29 row creates the missing monthly period automatically.
 - Amounts and observations save on blur or Enter to avoid one audit entry per keystroke.
 - Drive scans upsert metadata by Google `drive_file_id`, preventing duplicates.
+- Drive scans traverse the complete client folder tree, up to 15 levels and 10,000 items per client scan.
+- Every item stores its relative path, parent folder, depth, and inferred area. Paths below `Impuestos` are tagged for F29; paths below `Renta` are tagged for F22.
+- Folders are retained as navigation metadata but hidden from the Documents table by default, keeping the operational view focused on files.
 - Document classification and client observations also create activity entries.

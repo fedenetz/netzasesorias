@@ -123,6 +123,14 @@ Do not commit the service-account JSON.
 - An inactive Google user sees the approval-required screen and cannot read client data.
 - An active employee can open `/control` and `/f29/2026/05`.
 - `profiles`, `clients`, and `f29_periods` show RLS enabled.
+
+## Email and billing foundation
+
+1. Apply `supabase/migrations/20260619_add_email_billing_foundation.sql` after the base schema and F22 migration.
+2. Confirm the private `email-attachments` Storage bucket was created and remains non-public.
+3. Configure `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and `FIRM_NAME` in Netlify. The sender domain must be verified in Resend.
+4. Add at least one active billing contact to a client before preparing an F29 email or reminder.
+5. Do not add SII passwords, certificate passwords, API credentials, or raw client credentials to client records, logs, invoice metadata, or environment files.
 - No credential/password columns exist in Supabase.
 - The F29 import count matches the dry-run report.
 - Browser source contains only the publishable key, never the secret/service-role key.

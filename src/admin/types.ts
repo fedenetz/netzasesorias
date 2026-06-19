@@ -1,4 +1,6 @@
 export type F29StatusCode = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H';
+export type EmailStatus = 'not_sent' | 'sending' | 'sent' | 'failed';
+export type BillingStatus = 'not_applicable' | 'pending' | 'sent' | 'paid' | 'overdue';
 
 export const F29_STATUS_LABELS: Record<F29StatusCode, string> = {
   A: 'Cargada',
@@ -32,8 +34,61 @@ export interface ClientRow {
   statusLabel: string;
   dueDay: number | null;
   observation: string;
+  emailStatus: EmailStatus;
+  emailSentAt: string | null;
+  billingStatus: BillingStatus;
+  billingAmount: number | null;
+  billingDueDate: string | null;
+  paidAt: string | null;
+  paymentMethod: string;
+  paymentNotes: string;
   documents: number;
   updated: string;
+}
+
+export interface ClientContact {
+  id: string;
+  clientId: string;
+  name: string;
+  email: string;
+  contactType: 'general' | 'billing' | 'legal' | 'operations';
+  isBilling: boolean;
+  isPrimary: boolean;
+  isActive: boolean;
+}
+
+export interface BillingItem {
+  id: string;
+  clientId: string;
+  clientName: string;
+  rut: string;
+  f29PeriodId: string | null;
+  description: string;
+  amount: number;
+  dueDate: string | null;
+  status: BillingStatus;
+  paidAt: string | null;
+  paymentMethod: string;
+  notes: string;
+  lastReminderAt: string | null;
+  updatedAt: string;
+}
+
+export interface EmailTemplate {
+  id: string;
+  key: string;
+  subject: string;
+  bodyHtml: string;
+}
+
+export interface EmailAttachment {
+  id?: string;
+  source: 'drive' | 'storage';
+  documentId?: string;
+  path?: string;
+  fileName: string;
+  mimeType?: string;
+  sizeBytes?: number;
 }
 
 export type DocumentKind = 'f29' | 'rcv' | 'bce' | 'f22' | 'dj_1948' | 'dj_1949' | 'other';

@@ -37,7 +37,7 @@ export async function scanClientDrive(clientId: string) {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error('La sesión expiró.');
   if (!session.provider_token) throw new DriveAuthorizationError();
-  const response = await fetch('/.netlify/functions/drive-scan', {
+  const response = await fetch('/.netlify/functions/scan-drive-folder', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${session.access_token}`,

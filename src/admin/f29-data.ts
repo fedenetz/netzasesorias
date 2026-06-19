@@ -28,6 +28,14 @@ type PeriodRecord = {
   responsible_user_id: string | null;
   responsible_name: string | null;
   observation: string | null;
+  email_status: import('./types').EmailStatus;
+  sent_at: string | null;
+  billing_status: import('./types').BillingStatus;
+  billing_amount: number | string | null;
+  billing_due_date: string | null;
+  paid_at: string | null;
+  payment_method: string | null;
+  payment_notes: string | null;
   updated_at: string;
 };
 
@@ -40,7 +48,7 @@ export async function loadAdminRows(year: number, month: number): Promise<Client
   if (!supabase) return [];
   const [clientsResult, periodsResult, profilesResult, documentsResult] = await Promise.all([
     supabase.from('clients').select('id,rut,legal_name,accounting_code,has_credentials,drive_folder_id,is_active,f29_enabled,f22_enabled,assigned_user_id,updated_at').eq('is_active', true).order('legal_name'),
-    supabase.from('f29_periods').select('id,client_id,year,month,amount,filed_date,status_code,status_label,due_day,responsible_user_id,responsible_name,observation,updated_at').eq('year', year).eq('month', month),
+    supabase.from('f29_periods').select('id,client_id,year,month,amount,filed_date,status_code,status_label,due_day,responsible_user_id,responsible_name,observation,email_status,sent_at,billing_status,billing_amount,billing_due_date,paid_at,payment_method,payment_notes,updated_at').eq('year', year).eq('month', month),
     supabase.from('profiles').select('id,full_name').eq('is_active', true),
     supabase.from('documents').select('client_id,mime_type'),
   ]);
@@ -78,6 +86,14 @@ export async function loadAdminRows(year: number, month: number): Promise<Client
       statusLabel: period?.status_label || (statusCode ? F29_STATUS_LABELS[statusCode] : 'Sin estado'),
       dueDay: period?.due_day ?? null,
       observation: period?.observation ?? '',
+      emailStatus: period?.email_status ?? 'not_sent',
+      emailSentAt: period?.sent_at ?? null,
+      billingStatus: period?.billing_status ?? 'not_applicable',
+      billingAmount: period?.billing_amount === null || period?.billing_amount === undefined ? null : Number(period.billing_amount),
+      billingDueDate: period?.billing_due_date ?? null,
+      paidAt: period?.paid_at ?? null,
+      paymentMethod: period?.payment_method ?? '',
+      paymentNotes: period?.payment_notes ?? '',
       documents: documentCounts.get(client.id) ?? 0,
       updated: lastUpdated(period?.updated_at ?? client.updated_at),
     };

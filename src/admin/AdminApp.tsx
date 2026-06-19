@@ -4,7 +4,7 @@ import {
   Activity, AlertTriangle, ArrowRight, Bell, Building2, CalendarDays, Check, ChevronDown,
   ChevronsUpDown, CircleDollarSign, Clock3, Cloud, FileSpreadsheet, Files, FolderOpen,
   LayoutDashboard, LogOut, Menu, MoreHorizontal, Search, Settings, ShieldCheck, SlidersHorizontal,
-  Users, X, Plus, Save, ExternalLink, RefreshCw,
+  Users, X, Plus, Save, ExternalLink, RefreshCw, Mail,
 } from 'lucide-react';
 import { clients as seedClients, docs } from './data';
 import { F29_STATUS_LABELS, type ActivityEntry, type ClientDocument, type ClientObservation, type ClientRow, type DocumentKind, type F22Row, type F29StatusCode } from './types';
@@ -13,14 +13,17 @@ import { loadAdminRows, loadClientHistory, type PeriodHistory } from './f29-data
 import { loadClientF22, loadF22Rows, persistF22Change } from './f22-data';
 import { addClientObservation, classifyDocument, DriveAuthorizationError, loadClientActivity, loadClientDocuments, loadClientObservations, saveClient, scanClientDrive } from './client-api';
 import { connectGoogleDrive, supabase } from './supabase';
+import { BillingDashboard, BillingDetailsModal, ClientContactsPanel, EmailComposer, EmailStatusBadge, StatusBadge } from './billing-ui';
+import { effectiveBillingStatus } from './billing-utils';
 
-type Screen = 'dashboard' | 'clients' | 'f29' | 'f22' | 'client';
+type Screen = 'dashboard' | 'clients' | 'f29' | 'f22' | 'billing' | 'client';
 
 const nav = [
   { id: 'dashboard', label: 'Resumen', icon: LayoutDashboard },
   { id: 'clients', label: 'Clientes', icon: Users },
   { id: 'f29', label: 'F29 mensual', icon: CalendarDays },
   { id: 'f22', label: 'Renta / F22', icon: FileSpreadsheet },
+  { id: 'billing', label: 'Facturación', icon: CircleDollarSign },
 ] as const;
 
 const statusClass: Record<string, string> = {
@@ -47,7 +50,7 @@ export function AdminApp({ user, preview }: { user: User | null; preview: boolea
   const initialMonth = periodMatch ? Number(periodMatch[2]) : 5;
   const [activeYear, setActiveYear] = useState(initialYear);
   const [activeMonth, setActiveMonth] = useState(initialMonth);
-  const [screen, setScreen] = useState<Screen>(initialPath.includes('/f29') ? 'f29' : initialPath.includes('/f22') ? 'f22' : initialPath.includes('/clients/') ? 'client' : initialPath.endsWith('/clients') ? 'clients' : 'dashboard');
+  const [screen, setScreen] = useState<Screen>(initialPath.includes('/f29') ? 'f29' : initialPath.includes('/f22') ? 'f22' : initialPath.includes('/billing') ? 'billing' : initialPath.includes('/clients/') ? 'client' : initialPath.endsWith('/clients') ? 'clients' : 'dashboard');
   const [rows, setRows] = useState<ClientRow[]>(preview ? seedClients : []);
   const [selected, setSelected] = useState<ClientRow | null>(preview ? seedClients[0] : null);
   const [dataLoading, setDataLoading] = useState(!preview);
@@ -71,7 +74,7 @@ export function AdminApp({ user, preview }: { user: User | null; preview: boolea
   const go = (next: Screen, client?: ClientRow) => {
     if (client) setSelected(client);
     setScreen(next);
-    const paths: Record<Screen, string> = { dashboard: '/control', clients: '/clients', f29: `/f29/${activeYear}/${String(activeMonth).padStart(2, '0')}`, f22: '/f22/2026', client: `/clients/${client?.rut ?? selected?.rut ?? ''}` };
+    const paths: Record<Screen, string> = { dashboard: '/control', clients: '/clients', f29: `/f29/${activeYear}/${String(activeMonth).padStart(2, '0')}`, f22: '/f22/2026', billing: '/billing', client: `/clients/${client?.rut ?? selected?.rut ?? ''}` };
     window.history.pushState({}, '', paths[next]);
     setSidebarOpen(false);
   };
@@ -140,9 +143,10 @@ export function AdminApp({ user, preview }: { user: User | null; preview: boolea
         {dataLoading && <div className="control-data-state">Cargando datos de Supabase…</div>}
         {dataError && <div className="control-data-state is-error"><AlertTriangle size={18} />{dataError}</div>}
         {!dataLoading && !dataError && screen === 'dashboard' && <Dashboard rows={rows} go={go} year={activeYear} month={activeMonth} />}
-        {!dataLoading && !dataError && screen === 'f29' && <F29DashboardV2 rows={rows.filter(row => row.f29Enabled)} updateRow={updateRow} go={go} year={activeYear} month={activeMonth} navigatePeriod={navigatePeriod} saveStates={saveStates} />}
+        {!dataLoading && !dataError && screen === 'f29' && <F29DashboardV2 rows={rows.filter(row => row.f29Enabled)} updateRow={updateRow} go={go} year={activeYear} month={activeMonth} navigatePeriod={navigatePeriod} saveStates={saveStates} reload={reloadRows} />}
         {!dataLoading && !dataError && screen === 'f22' && <F22DashboardLive initialTaxYear={Number(initialPath.match(/\/f22\/(\d{4})/)?.[1] ?? 2026)} openClient={clientId => { const client = rows.find(row => row.id === clientId); if (client) go('client', client); }} />}
         {!dataLoading && !dataError && screen === 'clients' && <ClientsIndexV2 rows={rows} go={go} reload={reloadRows} />}
+        {!dataLoading && !dataError && screen === 'billing' && <BillingDashboard />}
         {!dataLoading && !dataError && screen === 'client' && selected && <ClientProfileV2 client={selected} year={activeYear} month={activeMonth} reload={reloadRows} />}
       </main>
     </div>
@@ -237,21 +241,25 @@ function CommitInput({ value, type = 'text', className, label, onCommit }: { val
   return <input className={className} aria-label={label} type={type} value={draft} onChange={event => setDraft(event.target.value)} onBlur={() => { if (String(draft) !== String(value ?? '')) onCommit(String(draft)); }} onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); if (event.key === 'Escape') { setDraft(value ?? ''); event.currentTarget.blur(); } }} />;
 }
 
-function F29DashboardV2({ rows, updateRow, go, year, month, navigatePeriod, saveStates }: { rows: ClientRow[]; updateRow: (id: string, patch: Partial<ClientRow>) => Promise<void>; go: (s: Screen, c?: ClientRow) => void; year: number; month: number; navigatePeriod: (year: number, month: number) => void; saveStates: Record<string, 'saving' | 'saved' | 'error'> }) {
+function F29DashboardV2({ rows, updateRow, go, year, month, navigatePeriod, saveStates, reload }: { rows: ClientRow[]; updateRow: (id: string, patch: Partial<ClientRow>) => Promise<void>; go: (s: Screen, c?: ClientRow) => void; year: number; month: number; navigatePeriod: (year: number, month: number) => void; saveStates: Record<string, 'saving' | 'saved' | 'error'>; reload: () => Promise<void> }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('Todos');
   const [responsible, setResponsible] = useState('Todos');
   const [onlyObserved, setOnlyObserved] = useState(false);
+  const [billingFilter, setBillingFilter] = useState<'all' | 'email' | 'pending' | 'overdue' | 'paid'>('all');
+  const [emailRow, setEmailRow] = useState<ClientRow | null>(null);
+  const [billingRow, setBillingRow] = useState<ClientRow | null>(null);
   const [page, setPage] = useState(1);
   const pageSize = 100;
-  useEffect(() => setPage(1), [query, filter, responsible, onlyObserved, year, month]);
+  useEffect(() => setPage(1), [query, filter, responsible, onlyObserved, billingFilter, year, month]);
   const responsibles = [...new Set(rows.map(row => row.accountant).filter(Boolean))].sort();
   const filtered = useMemo(() => rows.filter(row =>
     (filter === 'Todos' || (filter === 'Sin período' ? !row.periodId : row.statusCode === filter)) &&
     (responsible === 'Todos' || row.accountant === responsible) &&
     (!onlyObserved || Boolean(row.observation.trim())) &&
+    (billingFilter === 'all' || (billingFilter === 'email' && row.emailStatus !== 'sent') || (billingFilter === 'pending' && ['pending', 'sent'].includes(row.billingStatus)) || (billingFilter === 'overdue' && effectiveBillingStatus(row.billingStatus, row.billingDueDate, row.paidAt) === 'overdue') || (billingFilter === 'paid' && row.billingStatus === 'paid')) &&
     `${row.rut} ${row.name}`.toLowerCase().includes(query.trim().toLowerCase())
-  ), [rows, query, filter, responsible, onlyObserved]);
+  ), [rows, query, filter, responsible, onlyObserved, billingFilter]);
   const shown = filtered.slice((page - 1) * pageSize, page * pageSize);
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
   const periodRows = rows.filter(row => row.periodId);
@@ -264,10 +272,10 @@ function F29DashboardV2({ rows, updateRow, go, year, month, navigatePeriod, save
       <MiniMetric label="Total clientes" value={rows.length} /><MiniMetric label="Cargada" value={counts.A} tone="green" /><MiniMetric label="Error Dig." value={counts.B} tone="red" /><MiniMetric label="Informada" value={counts.C} tone="blue" /><MiniMetric label="Pagada / Enviada" value={counts.D} tone="green" /><MiniMetric label="Pendiente" value={counts.E} tone="gold" /><MiniMetric label="S/ Movi." value={counts.F} /><MiniMetric label="Postergado" value={counts.G} tone="gold" /><MiniMetric label="Rev. por Scarlen" value={counts.H} tone="red" /><MiniMetric label="Monto total" value={money.format(totalAmount)} tone="blue" /><MiniMetric label="Sin fecha" value={periodRows.filter(row => !row.filedDate).length} tone="gold" /><MiniMetric label="Sin período" value={rows.length - periodRows.length} tone="red" />
     </div>
     <section className="operations-card">
-      <div className="table-toolbar f29-toolbar"><div className="toolbar-search"><Search size={16} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Buscar por RUT o razón social…" /></div><select aria-label="Filtrar por estado" value={filter} onChange={event => setFilter(event.target.value)}><option value="Todos">Todos los estados</option><option value="Sin período">Sin período</option>{Object.entries(F29_STATUS_LABELS).map(([code, label]) => <option key={code} value={code}>{code} · {label}</option>)}</select><select aria-label="Filtrar por responsable" value={responsible} onChange={event => setResponsible(event.target.value)}><option>Todos</option>{responsibles.map(name => <option key={name}>{name}</option>)}</select><button className={`filter-button ${onlyObserved ? 'active' : ''}`} onClick={() => setOnlyObserved(value => !value)}><SlidersHorizontal size={15} /> Con observación</button></div>
-      <div className="table-scroll"><table className="ops-table f29-ops-table"><thead><tr><th>RUT</th><th className="sticky-client">Razón social</th><th>Responsable</th><th>Monto</th><th>Fecha</th><th>Estado</th><th>Vence</th><th>Observación</th><th>Docs</th><th>Guardado</th></tr></thead><tbody>{shown.map(row => <tr key={row.id} className={!row.periodId ? 'missing-period-row' : ''}><td><strong>{row.rut}</strong></td><td className="sticky-client"><button className="client-cell" onClick={() => go('client', row)}><strong>{row.name}</strong>{!row.periodId && <small>Se creará al editar</small>}</button></td><td><select className="inline-select" aria-label={`Responsable de ${row.name}`} value={row.accountant} onChange={event => void updateRow(row.id, { accountant: event.target.value })}>{responsibles.map(name => <option key={name}>{name}</option>)}</select></td><td><CommitInput className="inline-number" label={`Monto de ${row.name}`} type="number" value={row.amount} onCommit={value => void updateRow(row.id, { amount: value ? Number(value) : null })} /></td><td><input className="inline-date" aria-label={`Fecha de ${row.name}`} type="date" value={row.filedDate ?? ''} onChange={event => void updateRow(row.id, { filedDate: event.target.value || null })} /></td><td><select className={`inline-status ${statusClass[row.statusLabel] ?? 'is-neutral'}`} aria-label={`Estado de ${row.name}`} value={row.statusCode ?? ''} onChange={event => { const code = event.target.value as F29StatusCode; void updateRow(row.id, { statusCode: code, statusLabel: F29_STATUS_LABELS[code] }); }}><option value="" disabled>— Sin estado</option>{Object.entries(F29_STATUS_LABELS).map(([code, label]) => <option key={code} value={code}>{code} · {label}</option>)}</select></td><td><span className="due-day">Día {row.dueDay ?? '—'}</span></td><td><CommitInput className="inline-note" label={`Observación de ${row.name}`} value={row.observation} onCommit={value => void updateRow(row.id, { observation: value })} /></td><td><button className="document-count" onClick={() => go('client', row)}><Files size={14} />{row.documents}</button></td><td><SaveState state={saveStates[row.id]} /></td></tr>)}</tbody></table></div>
+      <div className="table-toolbar f29-toolbar"><div className="toolbar-search"><Search size={16} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Buscar por RUT o razón social…" /></div><select aria-label="Filtrar por estado" value={filter} onChange={event => setFilter(event.target.value)}><option value="Todos">Todos los estados</option><option value="Sin período">Sin período</option>{Object.entries(F29_STATUS_LABELS).map(([code, label]) => <option key={code} value={code}>{code} · {label}</option>)}</select><select aria-label="Filtrar por responsable" value={responsible} onChange={event => setResponsible(event.target.value)}><option>Todos</option>{responsibles.map(name => <option key={name}>{name}</option>)}</select><select aria-label="Filtro de comunicación y cobro" value={billingFilter} onChange={event => setBillingFilter(event.target.value as typeof billingFilter)}><option value="all">Email y cobro: todos</option><option value="email">Email no enviado</option><option value="pending">Cobro pendiente</option><option value="overdue">Vencido</option><option value="paid">Pagado</option></select><button className={`filter-button ${onlyObserved ? 'active' : ''}`} onClick={() => setOnlyObserved(value => !value)}><SlidersHorizontal size={15} /> Con observación</button></div>
+      <div className="table-scroll"><table className="ops-table f29-ops-table billing-extended"><thead><tr><th>RUT</th><th className="sticky-client">Razón social</th><th>Responsable</th><th>Monto F29</th><th>Fecha</th><th>Estado F29</th><th>Email</th><th>Cobro</th><th>Pagado</th><th>Monto cobro</th><th>Fecha pago</th><th>Acciones</th><th>Guardado</th></tr></thead><tbody>{shown.map(row => { const effective = effectiveBillingStatus(row.billingStatus, row.billingDueDate, row.paidAt); return <tr key={row.id} className={!row.periodId ? 'missing-period-row' : ''}><td><strong>{row.rut}</strong></td><td className="sticky-client"><button className="client-cell" onClick={() => go('client', row)}><strong>{row.name}</strong>{!row.periodId && <small>Se creará al editar</small>}</button></td><td><select className="inline-select" aria-label={`Responsable de ${row.name}`} value={row.accountant} onChange={event => void updateRow(row.id, { accountant: event.target.value })}>{responsibles.map(name => <option key={name}>{name}</option>)}</select></td><td><CommitInput className="inline-number" label={`Monto F29 de ${row.name}`} type="number" value={row.amount} onCommit={value => void updateRow(row.id, { amount: value ? Number(value) : null })} /></td><td><input className="inline-date" aria-label={`Fecha de ${row.name}`} type="date" value={row.filedDate ?? ''} onChange={event => void updateRow(row.id, { filedDate: event.target.value || null })} /></td><td><select className={`inline-status ${statusClass[row.statusLabel] ?? 'is-neutral'}`} aria-label={`Estado de ${row.name}`} value={row.statusCode ?? ''} onChange={event => { const code = event.target.value as F29StatusCode; void updateRow(row.id, { statusCode: code, statusLabel: F29_STATUS_LABELS[code] }); }}><option value="" disabled>— Sin estado</option>{Object.entries(F29_STATUS_LABELS).map(([code, label]) => <option key={code} value={code}>{code} · {label}</option>)}</select></td><td><EmailStatusBadge status={row.emailStatus} /></td><td><StatusBadge status={effective} /></td><td><Checkbox value={row.billingStatus === 'paid'} label={`Marcar pago de ${row.name}`} onChange={() => row.periodId && void updateRow(row.id, { billingStatus: row.billingStatus === 'paid' ? 'pending' : 'paid', paidAt: row.billingStatus === 'paid' ? null : new Date().toISOString() })} /></td><td><CommitInput className="inline-number" label={`Monto de cobro de ${row.name}`} type="number" value={row.billingAmount} onCommit={value => row.periodId && void updateRow(row.id, { billingAmount: value ? Number(value) : 0, billingStatus: row.billingStatus === 'not_applicable' ? 'pending' : row.billingStatus })} /></td><td><input className="inline-date" type="date" disabled={row.billingStatus !== 'paid'} value={row.paidAt?.slice(0, 10) ?? ''} onChange={event => void updateRow(row.id, { paidAt: event.target.value ? `${event.target.value}T12:00:00.000Z` : null })} /></td><td><div className="row-actions"><button disabled={!row.periodId} title={!row.periodId ? 'Crea el período antes de enviar' : ''} onClick={() => setEmailRow(row)}><Mail size={13} /> Preparar email</button><button disabled={!row.periodId} onClick={() => setBillingRow(row)}><CircleDollarSign size={13} /> Detalle</button></div></td><td><SaveState state={saveStates[row.id]} /></td></tr>; })}</tbody></table></div>
       <footer className="table-footer"><span>Mostrando {shown.length} de {filtered.length} clientes</span><span className="pagination"><button disabled={page === 1} onClick={() => setPage(value => value - 1)}>Anterior</button><b>{page} / {pageCount}</b><button disabled={page === pageCount} onClick={() => setPage(value => value + 1)}>Siguiente</button></span></footer>
-    </section>
+    </section>{emailRow && <EmailComposer row={emailRow} onClose={() => setEmailRow(null)} onSent={reload} />}{billingRow && <BillingDetailsModal row={billingRow} onClose={() => setBillingRow(null)} onSaved={reload} />}
   </div>;
 }
 
@@ -368,7 +376,7 @@ function ClientEditor({ client, onClose, onSaved }: { client?: ClientRow; onClos
   return <div className="modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}><form className="control-modal" onSubmit={submit}><header><div><span>Base maestra</span><h2>{client ? 'Editar cliente' : 'Nuevo cliente'}</h2></div><button type="button" onClick={onClose}><X size={18} /></button></header><label>RUT<input value={rut} onChange={event => setRut(event.target.value)} placeholder="76.123.456-7" /></label><label>Razón social<input value={name} onChange={event => setName(event.target.value)} /></label><label>Código contable<input value={accountingCode} onChange={event => setAccountingCode(event.target.value)} /></label><label>ID carpeta Google Drive<input value={driveFolderId} onChange={event => setDriveFolderId(event.target.value)} placeholder="ID, no la URL completa" /></label>{error && <p className="form-error">{error}</p>}<footer><button type="button" className="button-ghost" onClick={onClose}>Cancelar</button><button className="button-dark" disabled={saving}><Save size={15} />{saving ? 'Guardando…' : 'Guardar cliente'}</button></footer></form></div>;
 }
 
-type ProfileTab = 'Resumen' | 'F29 mensual' | 'Renta / F22' | 'Documentos' | 'Observaciones' | 'Actividad';
+type ProfileTab = 'Resumen' | 'F29 mensual' | 'Renta / F22' | 'Documentos' | 'Contactos' | 'Observaciones' | 'Actividad';
 
 function ClientProfileV2({ client, year, month, reload }: { client: ClientRow; year: number; month: number; reload: () => Promise<void> }) {
   const [tab, setTab] = useState<ProfileTab>('Resumen');
@@ -377,12 +385,13 @@ function ClientProfileV2({ client, year, month, reload }: { client: ClientRow; y
   const [observations, setObservations] = useState<ClientObservation[]>([]);
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [editing, setEditing] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const refresh = async () => { setLoadError(''); try { const [nextHistory, nextDocuments, nextObservations, nextActivity] = await Promise.all([loadClientHistory(client.id), loadClientDocuments(client.id), loadClientObservations(client.id), loadClientActivity(client.id)]); setHistory(nextHistory); setDocuments(nextDocuments); setObservations(nextObservations); setActivity(nextActivity); } catch (error) { setLoadError(error instanceof Error ? error.message : 'No fue posible cargar toda la ficha.'); } finally { setLoading(false); } };
   useEffect(() => { setLoading(true); void refresh(); }, [client.id]);
   const openDrive = () => { if (client.driveFolderId) window.open(`https://drive.google.com/drive/folders/${client.driveFolderId}`, '_blank', 'noopener,noreferrer'); };
-  return <div className="control-content"><div className="client-profile-head"><div className="client-monogram">{client.name.charAt(0)}</div><div><span>Cliente activo</span><h1>{client.name}</h1><p>{client.rut} · {client.accountant}</p></div><div className="page-actions"><button className="button-ghost" disabled={!client.driveFolderId} onClick={openDrive}><FolderOpen size={16} />{client.driveFolderId ? 'Abrir Drive' : 'Sin carpeta Drive'}</button><button className="button-dark" onClick={() => setEditing(true)}>Editar cliente</button></div></div><nav className="profile-tabs">{(['Resumen', 'F29 mensual', 'Renta / F22', 'Documentos', 'Observaciones', 'Actividad'] as ProfileTab[]).map(item => <button className={tab === item ? 'active' : ''} onClick={() => setTab(item)} key={item}>{item}{item === 'Documentos' && <em>{documents.filter(document => !document.isFolder).length}</em>}</button>)}</nav>{loadError && <div className="control-data-state is-error"><AlertTriangle size={16} />{loadError}</div>}{loading ? <div className="control-data-state">Cargando ficha del cliente…</div> : tab === 'Resumen' ? <ClientSummaryV2 client={client} history={history} year={year} month={month} observations={observations} /> : tab === 'F29 mensual' ? <HistoryPanel history={history} /> : tab === 'Renta / F22' ? <ClientF22Panel clientId={client.id} taxYear={2026} /> : tab === 'Documentos' ? <DocumentsPanelRecursive client={client} documents={documents} refresh={refresh} /> : tab === 'Observaciones' ? <ObservationsPanel client={client} observations={observations} refresh={refresh} /> : <ActivityPanelV2 client={client} activity={activity} />}{editing && <ClientEditor client={client} onClose={() => setEditing(false)} onSaved={async () => { setEditing(false); await reload(); }} />}</div>;
+  return <div className="control-content"><div className="client-profile-head"><div className="client-monogram">{client.name.charAt(0)}</div><div><span>Cliente activo</span><h1>{client.name}</h1><p>{client.rut} · {client.accountant}</p></div><div className="page-actions"><button className="button-ghost" disabled={!client.periodId} title={!client.periodId ? 'No existe un período F29 para este mes' : ''} onClick={() => setEmailOpen(true)}><Mail size={16} /> Preparar F29 Email</button><button className="button-ghost" disabled={!client.driveFolderId} onClick={openDrive}><FolderOpen size={16} />{client.driveFolderId ? 'Abrir Drive' : 'Sin carpeta Drive'}</button><button className="button-dark" onClick={() => setEditing(true)}>Editar cliente</button></div></div><nav className="profile-tabs">{(['Resumen', 'F29 mensual', 'Renta / F22', 'Documentos', 'Contactos', 'Observaciones', 'Actividad'] as ProfileTab[]).map(item => <button className={tab === item ? 'active' : ''} onClick={() => setTab(item)} key={item}>{item}{item === 'Documentos' && <em>{documents.filter(document => !document.isFolder).length}</em>}</button>)}</nav>{loadError && <div className="control-data-state is-error"><AlertTriangle size={16} />{loadError}</div>}{loading ? <div className="control-data-state">Cargando ficha del cliente…</div> : tab === 'Resumen' ? <ClientSummaryV2 client={client} history={history} year={year} month={month} observations={observations} /> : tab === 'F29 mensual' ? <HistoryPanel history={history} /> : tab === 'Renta / F22' ? <ClientF22Panel clientId={client.id} taxYear={2026} /> : tab === 'Documentos' ? <DocumentsPanelRecursive client={client} documents={documents} refresh={refresh} /> : tab === 'Contactos' ? <ClientContactsPanel clientId={client.id} /> : tab === 'Observaciones' ? <ObservationsPanel client={client} observations={observations} refresh={refresh} /> : <ActivityPanelV2 client={client} activity={activity} />}{editing && <ClientEditor client={client} onClose={() => setEditing(false)} onSaved={async () => { setEditing(false); await reload(); }} />}{emailOpen && <EmailComposer row={client} onClose={() => setEmailOpen(false)} onSent={reload} />}</div>;
 }
 
 function ClientSummaryV2({ client, history, year, month, observations }: { client: ClientRow; history: PeriodHistory[]; year: number; month: number; observations: ClientObservation[] }) {

@@ -4,6 +4,9 @@ const make = (id: string, rut: string, name: string, accountant: string, statusC
   id, periodId: `preview-${id}`, rut, name, accountant, initials: accountant.split(' ').map(part => part[0]).join('').slice(0, 2), f29Enabled: true, f22Enabled: true,
   year: 2026, month: 5, statusCode, statusLabel: F29_STATUS_LABELS[statusCode], amount, filedDate,
   dueDay, observation, documents, updated: id === '1' ? 'Hace 12 min' : id === '2' ? 'Hace 24 min' : 'Ayer',
+  emailStatus: id === '2' ? 'sent' : 'not_sent', emailSentAt: id === '2' ? '2026-06-18T14:00:00Z' : null,
+  billingStatus: id === '2' ? 'paid' : id === '5' ? 'overdue' : 'pending', billingAmount: amount ? Math.round(amount * 0.05) : null,
+  billingDueDate: '2026-06-20', paidAt: id === '2' ? '2026-06-17T12:00:00Z' : null, paymentMethod: '', paymentNotes: '',
 });
 
 export const clients: ClientRow[] = [

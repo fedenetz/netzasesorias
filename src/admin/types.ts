@@ -18,6 +18,8 @@ export interface ClientRow {
   name: string;
   accountingCode?: string;
   hasCredentials?: boolean;
+  driveFolderId?: string | null;
+  isActive?: boolean;
   accountant: string;
   initials: string;
   year: number;
@@ -30,4 +32,34 @@ export interface ClientRow {
   observation: string;
   documents: number;
   updated: string;
+}
+
+export type DocumentKind = 'f29' | 'rcv' | 'bce' | 'f22' | 'dj_1948' | 'dj_1949' | 'other';
+
+export interface ClientDocument {
+  id: string;
+  driveFileId: string;
+  driveUrl: string | null;
+  name: string;
+  mimeType: string | null;
+  type: DocumentKind;
+  processingStatus: string;
+  modifiedAt: string | null;
+}
+
+export interface ClientObservation {
+  id: string;
+  body: string;
+  resolved: boolean;
+  createdAt: string;
+  author: string;
+}
+
+export interface ActivityEntry {
+  id: number;
+  action: string;
+  beforeData: Record<string, unknown> | null;
+  afterData: Record<string, unknown> | null;
+  createdAt: string;
+  actor: string;
 }

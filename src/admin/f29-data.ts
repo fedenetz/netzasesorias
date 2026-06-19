@@ -7,6 +7,8 @@ type ClientRecord = {
   legal_name: string;
   accounting_code: string | null;
   has_credentials: boolean;
+  drive_folder_id: string | null;
+  is_active: boolean;
   assigned_user_id: string | null;
   updated_at: string;
 };
@@ -34,17 +36,20 @@ const lastUpdated = (value: string) => new Intl.DateTimeFormat('es-CL', { day: '
 
 export async function loadAdminRows(year: number, month: number): Promise<ClientRow[]> {
   if (!supabase) return [];
-  const [clientsResult, periodsResult, profilesResult] = await Promise.all([
-    supabase.from('clients').select('id,rut,legal_name,accounting_code,has_credentials,assigned_user_id,updated_at').eq('is_active', true).order('legal_name'),
+  const [clientsResult, periodsResult, profilesResult, documentsResult] = await Promise.all([
+    supabase.from('clients').select('id,rut,legal_name,accounting_code,has_credentials,drive_folder_id,is_active,assigned_user_id,updated_at').eq('is_active', true).order('legal_name'),
     supabase.from('f29_periods').select('id,client_id,year,month,amount,filed_date,status_code,status_label,due_day,responsible_user_id,responsible_name,observation,updated_at').eq('year', year).eq('month', month),
     supabase.from('profiles').select('id,full_name').eq('is_active', true),
+    supabase.from('documents').select('client_id'),
   ]);
   if (clientsResult.error) throw clientsResult.error;
   if (periodsResult.error) throw periodsResult.error;
   if (profilesResult.error) throw profilesResult.error;
+  if (documentsResult.error) throw documentsResult.error;
 
   const periods = new Map((periodsResult.data as PeriodRecord[]).map(period => [period.client_id, period]));
   const profiles = new Map((profilesResult.data ?? []).map(profile => [profile.id, profile.full_name ?? 'Sin asignar']));
+  const documentCounts = (documentsResult.data ?? []).reduce((counts, document) => counts.set(document.client_id, (counts.get(document.client_id) ?? 0) + 1), new Map<string, number>());
 
   return (clientsResult.data as ClientRecord[]).map(client => {
     const period = periods.get(client.id);
@@ -57,6 +62,8 @@ export async function loadAdminRows(year: number, month: number): Promise<Client
       name: client.legal_name,
       accountingCode: client.accounting_code ?? undefined,
       hasCredentials: client.has_credentials,
+      driveFolderId: client.drive_folder_id,
+      isActive: client.is_active,
       accountant,
       initials: initials(accountant),
       year,
@@ -67,7 +74,7 @@ export async function loadAdminRows(year: number, month: number): Promise<Client
       statusLabel: period?.status_label || (statusCode ? F29_STATUS_LABELS[statusCode] : 'Sin estado'),
       dueDay: period?.due_day ?? null,
       observation: period?.observation ?? '',
-      documents: 0,
+      documents: documentCounts.get(client.id) ?? 0,
       updated: lastUpdated(period?.updated_at ?? client.updated_at),
     };
   });

@@ -8,7 +8,7 @@ export function AdminGate() {
   const [session, setSession] = useState<Session | null>(null);
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(isSupabaseConfigured);
-  const preview = import.meta.env.DEV && !isSupabaseConfigured;
+  const preview = import.meta.env.DEV && (!isSupabaseConfigured || new URLSearchParams(window.location.search).has('preview'));
 
   useEffect(() => {
     if (!supabase) return;

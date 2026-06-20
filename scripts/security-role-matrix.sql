@@ -3,6 +3,18 @@
 begin;
 
 do $$
+begin
+  if to_regprocedure('public.can_view()') is null
+     or to_regprocedure('public.can_operate()') is null
+     or to_regprocedure('public.is_admin()') is null then
+    raise exception using
+      errcode = '55000',
+      message = 'Security baseline is not installed',
+      hint = 'Apply supabase/migrations/20260624_security_production_baseline.sql before running this role matrix.';
+  end if;
+end $$;
+
+do $$
 declare
   admin_id uuid := '10000000-0000-0000-0000-000000000001';
   accountant_id uuid := '10000000-0000-0000-0000-000000000002';

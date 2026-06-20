@@ -1,6 +1,17 @@
 export type F29StatusCode = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H';
 export type EmailStatus = 'not_sent' | 'sending' | 'sent' | 'failed';
 export type BillingStatus = 'not_applicable' | 'pending' | 'sent' | 'paid' | 'overdue';
+export type EmployeeRole = 'admin' | 'accountant' | 'viewer';
+
+export interface EmployeeAccess {
+  id: string;
+  profileId: string | null;
+  email: string;
+  fullName: string;
+  role: EmployeeRole;
+  isActive: boolean;
+  hasSignedIn: boolean;
+}
 
 export const F29_STATUS_LABELS: Record<F29StatusCode, string> = {
   A: 'Cargada',
@@ -77,6 +88,7 @@ export interface BillingItem {
   paymentMethod: string;
   notes: string;
   lastReminderAt: string | null;
+  paymentLink?: string | null;
   updatedAt: string;
 }
 

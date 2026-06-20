@@ -51,7 +51,7 @@ export default function App() {
     return <AdminGate />;
   }
 
-  if (path.startsWith('/control') || path.startsWith('/f29/') || path.startsWith('/f22/') || path === '/billing' || path === '/clients' || path.startsWith('/clients/')) {
+  if (path.startsWith('/control') || path.startsWith('/f29/') || path.startsWith('/f22/') || path === '/billing' || path === '/clients' || path.startsWith('/clients/') || path === '/documents' || path === '/activity' || path === '/settings') {
     return <AdminGate />;
   }
 

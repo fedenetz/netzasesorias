@@ -1,5 +1,5 @@
 import type { Handler } from '@netlify/functions';
-import { authenticate, functionError, json, loadAttachments, parseBody, renderTemplate, sanitizeHtml, sendWithResend, validateEmails, type AttachmentInput } from './_shared';
+import { authenticate, functionError, json, loadAttachments, parseBody, renderTemplate, resolveEmployeeEmail, sanitizeHtml, sendWithResend, validateEmails, type AttachmentInput } from './_shared';
 
 type Input = { f29_period_id: string; to: string[]; cc?: string[]; subject?: string; body_html?: string; attachments?: AttachmentInput[]; schedule_next_business_morning?: boolean };
 const money = (value: number | string | null) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(Number(value ?? 0));
@@ -23,15 +23,8 @@ export const handler: Handler = async event => {
 
     const client = Array.isArray(period.clients) ? period.clients[0] : period.clients;
     const responsibleId = period.responsible_user_id || client?.assigned_user_id;
-    let responsibleEmail = '';
-    if (responsibleId) {
-      const { data: profile } = await context.supabase.from('profiles').select('email').eq('id', responsibleId).eq('is_active', true).maybeSingle();
-      responsibleEmail = profile?.email ?? '';
-    } else if (period.responsible_name) {
-      const { data: profile } = await context.supabase.from('profiles').select('email').ilike('full_name', period.responsible_name).eq('is_active', true).maybeSingle();
-      responsibleEmail = profile?.email ?? '';
-    }
-    if (!responsibleEmail) throw Object.assign(new Error('El responsable del cliente debe tener un email activo en Perfiles.'), { statusCode: 409 });
+    const responsibleEmail = await resolveEmployeeEmail(context.supabase, responsibleId, period.responsible_name);
+    if (!responsibleEmail) throw Object.assign(new Error(`El responsable ${period.responsible_name || 'asignado'} no tiene email activo en Configuración > Equipo y acceso.`), { statusCode: 409 });
     const cc = validateEmails([...(input.cc ?? []), responsibleEmail, CONTROL_EMAIL].filter(email => !to.includes(String(email).toLowerCase())));
 
     const { data: template } = await context.supabase.from('email_templates').select('*').eq('key', 'f29_monthly_summary').eq('active', true).single();

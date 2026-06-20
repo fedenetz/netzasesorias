@@ -13,12 +13,15 @@ import { loadAdminRows, loadClientHistory, type PeriodHistory } from './f29-data
 import { loadClientF22, loadF22Rows, persistF22Change } from './f22-data';
 import { addClientObservation, classifyDocument, DriveAuthorizationError, loadClientActivity, loadClientDocuments, loadClientObservations, saveClient, scanClientDrive } from './client-api';
 import { connectGoogleDrive, supabase } from './supabase';
-import { BillingDashboard, BillingDetailsModal, ClientContactsPanel, EmailStatusBadge, StatusBadge } from './billing-ui';
+import { BillingDetailsModal, ClientContactsPanel, EmailStatusBadge, StatusBadge } from './billing-ui';
+import { BillingDashboard } from './BillingDashboard';
 import { F29MailComposer as EmailComposer } from './F29MailComposer';
 import { effectiveBillingStatus } from './billing-utils';
 import { F29OperationsDashboard } from './f29-operations-ui';
+import { AdminSettings } from './AdminSettings';
+import { ActivityWorkspace, DocumentsWorkspace } from './OperationsScreens';
 
-type Screen = 'dashboard' | 'clients' | 'f29' | 'f22' | 'billing' | 'client';
+type Screen = 'dashboard' | 'clients' | 'f29' | 'f22' | 'billing' | 'documents' | 'activity' | 'settings' | 'client';
 
 const nav = [
   { id: 'dashboard', label: 'Resumen', icon: LayoutDashboard },
@@ -52,7 +55,7 @@ export function AdminApp({ user, preview, role }: { user: User | null; preview: 
   const initialMonth = periodMatch ? Number(periodMatch[2]) : 5;
   const [activeYear, setActiveYear] = useState(initialYear);
   const [activeMonth, setActiveMonth] = useState(initialMonth);
-  const [screen, setScreen] = useState<Screen>(initialPath.includes('/f29') ? 'f29' : initialPath.includes('/f22') ? 'f22' : initialPath.includes('/billing') ? 'billing' : initialPath.includes('/clients/') ? 'client' : initialPath.endsWith('/clients') ? 'clients' : 'dashboard');
+  const [screen, setScreen] = useState<Screen>(initialPath.includes('/f29') ? 'f29' : initialPath.includes('/f22') ? 'f22' : initialPath.includes('/billing') ? 'billing' : initialPath.includes('/documents') ? 'documents' : initialPath.includes('/activity') ? 'activity' : initialPath.includes('/settings') ? 'settings' : initialPath.includes('/clients/') ? 'client' : initialPath.endsWith('/clients') ? 'clients' : 'dashboard');
   const [rows, setRows] = useState<ClientRow[]>(preview ? seedClients : []);
   const [selected, setSelected] = useState<ClientRow | null>(preview ? seedClients[0] : null);
   const [dataLoading, setDataLoading] = useState(!preview);
@@ -76,7 +79,7 @@ export function AdminApp({ user, preview, role }: { user: User | null; preview: 
   const go = (next: Screen, client?: ClientRow) => {
     if (client) setSelected(client);
     setScreen(next);
-    const paths: Record<Screen, string> = { dashboard: '/control', clients: '/clients', f29: `/f29/${activeYear}/${String(activeMonth).padStart(2, '0')}`, f22: '/f22/2026', billing: '/billing', client: `/clients/${client?.rut ?? selected?.rut ?? ''}` };
+    const paths: Record<Screen, string> = { dashboard: '/control', clients: '/clients', f29: `/f29/${activeYear}/${String(activeMonth).padStart(2, '0')}`, f22: '/f22/2026', billing: '/billing', documents: '/documents', activity: '/activity', settings: '/settings', client: `/clients/${client?.rut ?? selected?.rut ?? ''}` };
     window.history.pushState({}, '', paths[next]);
     setSidebarOpen(false);
   };
@@ -114,7 +117,10 @@ export function AdminApp({ user, preview, role }: { user: User | null; preview: 
       setSaveStates(current => ({ ...current, [id]: 'error' }));
     }
   };
-  const displayName = user?.user_metadata?.full_name ?? 'Camila Soto';
+  const displayName = String(user?.user_metadata?.full_name ?? 'Camila Soto');
+  const [globalSearch, setGlobalSearch] = useState('');
+  const searchMatches = globalSearch.trim() ? rows.filter(row => `${row.name} ${row.rut} ${row.accountingCode ?? ''}`.toLowerCase().includes(globalSearch.toLowerCase())).slice(0, 6) : [];
+  const signOut = () => void supabase?.auth.signOut();
 
   return (
     <div className="control-shell">
@@ -125,22 +131,22 @@ export function AdminApp({ user, preview, role }: { user: User | null; preview: 
           <p>Principal</p>
           {nav.map(item => <button key={item.id} className={screen === item.id ? 'active' : ''} onClick={() => go(item.id)}><item.icon size={18} />{item.label}{item.id === 'f29' && <em>{rows.filter(row => row.f29Enabled && row.periodId).length}</em>}</button>)}
           <p>Gestión</p>
-          <button><Files size={18} />Documentos</button>
-          <button><Activity size={18} />Actividad</button>
+          <button className={screen === 'documents' ? 'active' : ''} onClick={() => go('documents')}><Files size={18} />Documentos</button>
+          <button className={screen === 'activity' ? 'active' : ''} onClick={() => go('activity')}><Activity size={18} />Actividad</button>
         </nav>
         <div className="sidebar-bottom">
-          <button><Settings size={18} />Configuración</button>
+          {role === 'admin' && <button className={screen === 'settings' ? 'active' : ''} onClick={() => go('settings')}><Settings size={18} />Configuración</button>}
           <div className="secure-note"><ShieldCheck size={17} /><span><strong>Entorno seguro</strong><small>Acceso solo empleados</small></span></div>
         </div>
       </aside>
       <main className="control-main">
         <header className="control-topbar">
           <button className="mobile-sidebar" onClick={() => setSidebarOpen(true)}><Menu size={20} /></button>
-          <div className="topbar-search"><Search size={17} /><input placeholder="Buscar cliente, RUT o documento…" /><kbd>⌘ K</kbd></div>
+          <div className="topbar-search global-search"><Search size={17} /><input value={globalSearch} onChange={event => setGlobalSearch(event.target.value)} placeholder="Buscar cliente, RUT o Conta…" />{searchMatches.length > 0 && <div className="global-search-results">{searchMatches.map(row => <button key={row.id} onClick={() => { setGlobalSearch(''); go('client', row); }}><strong>{row.name}</strong><small>{row.rut} · Conta {row.accountingCode ?? '—'}</small></button>)}</div>}</div>
           <div className="topbar-actions">
             {preview && <span className="preview-badge">Vista local</span>}
-            <button className="icon-button"><Bell size={18} /><i /></button>
-            <div className="user-menu"><EmptyAvatar initials="CS" /><span><strong>{displayName}</strong><small>Contador senior</small></span><ChevronDown size={15} /></div>
+            <button className="icon-button" aria-label="Ver actividad" onClick={() => go('activity')}><Bell size={18} /></button>
+            <button className="user-menu" onClick={signOut} title="Cerrar sesión"><EmptyAvatar initials={displayName.split(' ').map(value => value[0]).join('').slice(0,2).toUpperCase()} /><span><strong>{displayName}</strong><small>{role === 'admin' ? 'Administrador' : role === 'accountant' ? 'Contador' : 'Solo lectura'}</small></span><LogOut size={15} /></button>
           </div>
         </header>
         {dataLoading && <div className="control-data-state">Cargando datos de Supabase…</div>}
@@ -149,7 +155,10 @@ export function AdminApp({ user, preview, role }: { user: User | null; preview: 
         {!dataLoading && !dataError && screen === 'f29' && <F29OperationsDashboard rows={rows.filter(row => row.f29Enabled)} updateRow={updateRow} openClient={row => go('client', row)} year={activeYear} month={activeMonth} navigatePeriod={navigatePeriod} saveStates={saveStates} reload={reloadRows} isAdmin={role === 'admin'} />}
         {!dataLoading && !dataError && screen === 'f22' && <F22DashboardLive initialTaxYear={Number(initialPath.match(/\/f22\/(\d{4})/)?.[1] ?? 2026)} openClient={clientId => { const client = rows.find(row => row.id === clientId); if (client) go('client', client); }} />}
         {!dataLoading && !dataError && screen === 'clients' && <ClientsIndexV3 rows={rows} go={go} reload={reloadRows} />}
-        {!dataLoading && !dataError && screen === 'billing' && <BillingDashboard />}
+        {!dataLoading && !dataError && screen === 'billing' && <BillingDashboard openClient={clientId => { const client = rows.find(row => row.id === clientId); if (client) go('client', client); }} />}
+        {!dataLoading && !dataError && screen === 'documents' && <DocumentsWorkspace />}
+        {!dataLoading && !dataError && screen === 'activity' && <ActivityWorkspace />}
+        {!dataLoading && !dataError && screen === 'settings' && role === 'admin' && <AdminSettings preview={preview} />}
         {!dataLoading && !dataError && screen === 'client' && selected && <ClientProfileV2 client={selected} year={activeYear} month={activeMonth} reload={reloadRows} />}
       </main>
     </div>

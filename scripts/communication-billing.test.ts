@@ -54,3 +54,14 @@ test('F29 mail refinement defines deadlines and scheduled delivery lifecycle', (
   assert.match(sql, /filed_date = coalesce/);
   assert.doesNotMatch(sql, /\bend\s+\$\$/i);
 });
+
+test('admin and billing refinement defines a safelist and audited manual charges', () => {
+  const sql = readFileSync(join(process.cwd(), 'supabase/migrations/20260622_admin_billing_navigation.sql'), 'utf8');
+  assert.match(sql, /create table if not exists public\.employee_email_allowlist/);
+  assert.match(sql, /create or replace function public\.manage_employee_allowlist/);
+  assert.match(sql, /role = 'admin'/);
+  assert.match(sql, /employee_allowlist_(created|updated)/);
+  assert.match(sql, /create or replace function public\.handle_new_user/);
+  assert.doesNotMatch(sql, /sii_password|certificate_password|raw_credentials/i);
+  assert.doesNotMatch(sql, /\bend\s+\$\$/i);
+});

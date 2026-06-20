@@ -50,6 +50,22 @@ export function renderTemplate(value: string, variables: Record<string, string>)
   return value.replace(/{{\s*([a-z0-9_]+)\s*}}/gi, (_, key: string) => variables[key] ?? '—');
 }
 
+export async function resolveEmployeeEmail(supabase: SupabaseClient, profileId?: string | null, fullName?: string | null) {
+  if (profileId) {
+    const { data: profile } = await supabase.from('profiles').select('email').eq('id', profileId).eq('is_active', true).maybeSingle();
+    if (profile?.email) return String(profile.email);
+    const { data: allowed } = await supabase.from('employee_email_allowlist').select('email').eq('profile_id', profileId).eq('is_active', true).maybeSingle();
+    if (allowed?.email) return String(allowed.email);
+  }
+  if (fullName?.trim()) {
+    const { data: profile } = await supabase.from('profiles').select('email').ilike('full_name', fullName.trim()).eq('is_active', true).maybeSingle();
+    if (profile?.email) return String(profile.email);
+    const { data: allowed } = await supabase.from('employee_email_allowlist').select('email').ilike('full_name', fullName.trim()).eq('is_active', true).maybeSingle();
+    if (allowed?.email) return String(allowed.email);
+  }
+  return '';
+}
+
 export async function loadAttachments(event: HandlerEvent, supabase: SupabaseClient, inputs: AttachmentInput[], expectedClientId: string) {
   const output: Array<{ filename: string; content: string; content_type?: string }> = [];
   let total = 0;

@@ -43,3 +43,14 @@ test('F29 operations refinement separates tax payment from billing', () => {
   assert.match(sql, /f29_payment_reminder_sent/);
   assert.doesNotMatch(sql, /\bend\s+\$\$/i);
 });
+
+test('F29 mail refinement defines deadlines and scheduled delivery lifecycle', () => {
+  const sql = readFileSync(join(process.cwd(), 'supabase/migrations/20260621_refine_f29_mail_delivery.sql'), 'utf8');
+  assert.match(sql, /f29_electronic_payment_due_date/);
+  assert.match(sql, /next_chile_business_date/);
+  assert.match(sql, /America\/Santiago/);
+  assert.match(sql, /mark_email_scheduled/);
+  assert.match(sql, /status_code = 'C'/);
+  assert.match(sql, /filed_date = coalesce/);
+  assert.doesNotMatch(sql, /\bend\s+\$\$/i);
+});

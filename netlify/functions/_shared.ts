@@ -72,10 +72,18 @@ export async function loadAttachments(event: HandlerEvent, supabase: SupabaseCli
       if (!token) throw Object.assign(new Error('Google Drive authorization is required for this attachment'), { statusCode: 401, code: 'drive_reauth_required' });
       const oauth = new google.auth.OAuth2();
       oauth.setCredentials({ access_token: token });
-      const response = await google.drive({ version: 'v3', auth: oauth }).files.get({ fileId: document.drive_file_id, alt: 'media' }, { responseType: 'arraybuffer' });
-      bytes = new Uint8Array(response.data as ArrayBuffer);
-      filename = document.file_name;
-      contentType = document.mime_type ?? undefined;
+      const drive = google.drive({ version: 'v3', auth: oauth });
+      if (document.mime_type === 'application/vnd.google-apps.spreadsheet') {
+        const response = await drive.files.export({ fileId: document.drive_file_id, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }, { responseType: 'arraybuffer' });
+        bytes = new Uint8Array(response.data as ArrayBuffer);
+        filename = document.file_name.toLowerCase().endsWith('.xlsx') ? document.file_name : `${document.file_name}.xlsx`;
+        contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      } else {
+        const response = await drive.files.get({ fileId: document.drive_file_id, alt: 'media' }, { responseType: 'arraybuffer' });
+        bytes = new Uint8Array(response.data as ArrayBuffer);
+        filename = document.file_name;
+        contentType = document.mime_type ?? undefined;
+      }
     }
     total += bytes.byteLength;
     if (total > 10 * 1024 * 1024) throw Object.assign(new Error('Attachments exceed the 10 MB combined limit'), { statusCode: 413 });
@@ -84,7 +92,7 @@ export async function loadAttachments(event: HandlerEvent, supabase: SupabaseCli
   return output;
 }
 
-export async function sendWithResend(payload: { from: string; to: string[]; cc: string[]; subject: string; html: string; attachments: unknown[] }, idempotencyKey: string) {
+export async function sendWithResend(payload: { from: string; to: string[]; cc: string[]; subject: string; html: string; attachments: unknown[]; scheduled_at?: string; reply_to?: string }, idempotencyKey: string) {
   const key = process.env.RESEND_API_KEY;
   if (!key) throw new Error('RESEND_API_KEY is not configured');
   const response = await fetch('https://api.resend.com/emails', {

@@ -18,7 +18,7 @@ export function StatusBadge({ status }: { status: BillingStatus }) {
 }
 
 export function EmailStatusBadge({ status }: { status: ClientRow['emailStatus'] }) {
-  const label = { not_sent: 'No enviado', sending: 'Enviando', sent: 'Enviado', failed: 'Error' }[status];
+  const label = { not_sent: 'No enviado', sending: 'Programado', sent: 'Enviado', failed: 'Error' }[status];
   return <span className={`status-pill ${status === 'sent' ? 'is-paid' : status === 'failed' ? 'is-blocked' : status === 'sending' ? 'is-progress' : 'is-neutral'}`}><i />{label}</span>;
 }
 

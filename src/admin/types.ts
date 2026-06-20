@@ -7,7 +7,7 @@ export const F29_STATUS_LABELS: Record<F29StatusCode, string> = {
   B: 'Error e-dig',
   C: 'Informada',
   D: 'Pagada / Enviada',
-  E: 'Pendiente',
+  E: 'Pago pendiente / vencido',
   F: 'Sin movimiento',
   G: 'Postergado',
   H: 'Revisión requerida',
@@ -25,6 +25,7 @@ export interface ClientRow {
   f29Enabled: boolean;
   f22Enabled: boolean;
   accountant: string;
+  accountantEmail: string;
   initials: string;
   year: number;
   month: number;
@@ -46,6 +47,7 @@ export interface ClientRow {
   taxPaid: boolean;
   taxPaidAt: string | null;
   taxLastReminderAt: string | null;
+  taxPaymentDueDate: string | null;
   documents: number;
   updated: string;
 }

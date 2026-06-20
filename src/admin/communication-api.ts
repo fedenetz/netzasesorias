@@ -39,6 +39,13 @@ export async function loadEmailTemplate(key: string): Promise<EmailTemplate> {
   return { id: data.id, key: data.key, subject: data.subject, bodyHtml: data.body_html };
 }
 
+export async function loadLastEmailRecipients(clientId: string, messageKind: 'f29_summary' | 'f29_payment_reminder' = 'f29_summary'): Promise<string[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.from('email_logs').select('to_emails').eq('client_id', clientId).eq('message_kind', messageKind).eq('status', 'sent').order('sent_at', { ascending: false }).limit(1).maybeSingle();
+  if (error) throw error;
+  return data?.to_emails ?? [];
+}
+
 export async function loadStoredAttachments(periodId: string): Promise<EmailAttachment[]> {
   if (!supabase) return [];
   const { data, error } = await supabase.from('communication_files').select('id,source,storage_path,file_name,mime_type,size_bytes,document_id').eq('f29_period_id', periodId).order('created_at', { ascending: false });
@@ -58,6 +65,6 @@ export async function uploadEmailAttachment(clientId: string, periodId: string, 
 
 export const driveAttachment = (document: ClientDocument): EmailAttachment => ({ source: 'drive', documentId: document.id, fileName: document.name, mimeType: document.mimeType ?? undefined });
 
-export const sendF29Email = (periodId: string, to: string[], cc: string[], subject: string, bodyHtml: string, attachments: EmailAttachment[]) => invoke('send-email', { f29_period_id: periodId, to, cc, subject, body_html: bodyHtml, attachments: attachments.map(item => ({ source: item.source, document_id: item.documentId, path: item.path, file_name: item.fileName, mime_type: item.mimeType })) }, true);
+export const sendF29Email = (periodId: string, to: string[], cc: string[], subject: string, bodyHtml: string, attachments: EmailAttachment[], scheduleNextBusinessMorning = false) => invoke('send-email', { f29_period_id: periodId, to, cc, subject, body_html: bodyHtml, attachments: attachments.map(item => ({ source: item.source, document_id: item.documentId, path: item.path, file_name: item.fileName, mime_type: item.mimeType })), schedule_next_business_morning: scheduleNextBusinessMorning }, true);
 export const sendReminder = (billingItemId: string, to: string[], cc: string[], subject: string, bodyHtml: string) => invoke('send-reminder', { billing_item_id: billingItemId, to, cc, subject, body_html: bodyHtml });
 export const sendF29PaymentReminder = (periodId: string, to: string[], cc: string[], subject: string, bodyHtml: string) => invoke('send-reminder', { f29_period_id: periodId, to, cc, subject, body_html: bodyHtml });

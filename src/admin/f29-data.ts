@@ -39,6 +39,7 @@ type PeriodRecord = {
   tax_paid: boolean;
   tax_paid_at: string | null;
   last_payment_reminder_at: string | null;
+  tax_payment_due_date: string | null;
   updated_at: string;
 };
 
@@ -53,9 +54,9 @@ export async function loadAdminRows(year: number, month: number, includeAdminObs
   const previousYear = month === 1 ? year - 1 : year;
   const [clientsResult, periodsResult, previousPeriodsResult, profilesResult, documentsResult] = await Promise.all([
     supabase.from('clients').select('id,rut,legal_name,accounting_code,has_credentials,drive_folder_id,is_active,f29_enabled,f22_enabled,assigned_user_id,updated_at').eq('is_active', true).order('legal_name'),
-    supabase.from('f29_periods').select('id,client_id,year,month,amount,filed_date,status_code,status_label,due_day,responsible_user_id,responsible_name,observation,email_status,sent_at,billing_status,billing_amount,billing_due_date,paid_at,payment_method,payment_notes,tax_paid,tax_paid_at,last_payment_reminder_at,updated_at').eq('year', year).eq('month', month),
+    supabase.from('f29_periods').select('id,client_id,year,month,amount,filed_date,status_code,status_label,due_day,responsible_user_id,responsible_name,observation,email_status,sent_at,billing_status,billing_amount,billing_due_date,paid_at,payment_method,payment_notes,tax_paid,tax_paid_at,last_payment_reminder_at,tax_payment_due_date,updated_at').eq('year', year).eq('month', month),
     supabase.from('f29_periods').select('client_id,amount').eq('year', previousYear).eq('month', previousMonth),
-    supabase.from('profiles').select('id,full_name').eq('is_active', true),
+    supabase.from('profiles').select('id,full_name,email').eq('is_active', true),
     supabase.from('documents').select('client_id,mime_type'),
   ]);
   if (clientsResult.error) throw clientsResult.error;
@@ -66,13 +67,19 @@ export async function loadAdminRows(year: number, month: number, includeAdminObs
 
   const periods = new Map((periodsResult.data as PeriodRecord[]).map(period => [period.client_id, period]));
   const previousAmounts = new Map((previousPeriodsResult.data ?? []).map(period => [period.client_id, period.amount === null ? null : Number(period.amount)]));
-  const profiles = new Map((profilesResult.data ?? []).map(profile => [profile.id, profile.full_name ?? 'Sin asignar']));
+  const profiles = new Map((profilesResult.data ?? []).map(profile => [profile.id, { name: profile.full_name ?? 'Sin asignar', email: profile.email ?? '' }]));
+  const profilesByName = new Map((profilesResult.data ?? []).map(profile => [String(profile.full_name ?? '').trim().toLowerCase(), profile.email ?? '']));
   const documentCounts = (documentsResult.data ?? []).filter(document => document.mime_type !== 'application/vnd.google-apps.folder').reduce((counts, document) => counts.set(document.client_id, (counts.get(document.client_id) ?? 0) + 1), new Map<string, number>());
 
   return (clientsResult.data as ClientRecord[]).map(client => {
     const period = periods.get(client.id);
-    const accountant = period?.responsible_name || (period?.responsible_user_id ? profiles.get(period.responsible_user_id) : null) || (client.assigned_user_id ? profiles.get(client.assigned_user_id) : null) || 'Sin asignar';
-    const statusCode = period?.status_code ?? null;
+    const assignedProfile = period?.responsible_user_id ? profiles.get(period.responsible_user_id) : client.assigned_user_id ? profiles.get(client.assigned_user_id) : null;
+    const accountant = period?.responsible_name || assignedProfile?.name || 'Sin asignar';
+    const accountantEmail = assignedProfile?.email || profilesByName.get(accountant.trim().toLowerCase()) || '';
+    const amount = period?.amount === null || period?.amount === undefined ? null : Number(period.amount);
+    const taxPaid = period?.tax_paid ?? period?.status_code === 'D';
+    const overdue = Boolean(period?.tax_payment_due_date && period.tax_payment_due_date < new Date().toISOString().slice(0, 10) && !taxPaid && (amount ?? 0) > 0 && period?.email_status === 'sent');
+    const statusCode: F29StatusCode | null = taxPaid && (amount ?? 0) > 0 ? 'D' : overdue ? 'E' : period?.email_status === 'sent' ? 'C' : period?.status_code ?? null;
     return {
       id: client.id,
       periodId: period?.id,
@@ -85,10 +92,11 @@ export async function loadAdminRows(year: number, month: number, includeAdminObs
       f29Enabled: client.f29_enabled,
       f22Enabled: client.f22_enabled,
       accountant,
+      accountantEmail,
       initials: initials(accountant),
       year,
       month,
-      amount: period?.amount === null || period?.amount === undefined ? null : Number(period.amount),
+      amount,
       previousAmount: previousAmounts.get(client.id) ?? null,
       filedDate: period?.filed_date ?? null,
       statusCode,
@@ -103,9 +111,10 @@ export async function loadAdminRows(year: number, month: number, includeAdminObs
       paidAt: period?.paid_at ?? null,
       paymentMethod: period?.payment_method ?? '',
       paymentNotes: period?.payment_notes ?? '',
-      taxPaid: period?.tax_paid ?? statusCode === 'D',
+      taxPaid,
       taxPaidAt: period?.tax_paid_at ?? null,
       taxLastReminderAt: period?.last_payment_reminder_at ?? null,
+      taxPaymentDueDate: period?.tax_payment_due_date ?? null,
       documents: documentCounts.get(client.id) ?? 0,
       updated: lastUpdated(period?.updated_at ?? client.updated_at),
     };

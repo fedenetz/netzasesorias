@@ -4,7 +4,7 @@ import {
   Activity, AlertTriangle, ArrowRight, Bell, Building2, CalendarDays, Check, ChevronDown,
   ChevronsUpDown, CircleDollarSign, Clock3, Cloud, FileSpreadsheet, Files, FolderOpen,
   LayoutDashboard, LogOut, Menu, MoreHorizontal, Search, Settings, ShieldCheck, SlidersHorizontal,
-  Users, X, Plus, Save, ExternalLink, RefreshCw, Mail, LockKeyhole,
+  Users, X, Plus, Save, ExternalLink, RefreshCw, Mail, LockKeyhole, Sun, Moon, Gauge,
 } from 'lucide-react';
 import { clients as seedClients, docs } from './data';
 import { F29_STATUS_LABELS, type ActivityEntry, type ClientBillingSummary, type ClientDocument, type ClientObservation, type ClientRow, type DocumentKind, type F22Row, type F29StatusCode } from './types';
@@ -63,6 +63,15 @@ export function AdminApp({ user, preview, role }: { user: User | null; preview: 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [saveStates, setSaveStates] = useState<Record<string, 'saving' | 'saved' | 'error'>>({});
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => window.localStorage.getItem('netz-control-theme') === 'light' ? 'light' : 'dark');
+  const [density, setDensity] = useState<'compact' | 'comfortable'>(() => window.localStorage.getItem('netz-control-density') === 'comfortable' ? 'comfortable' : 'compact');
+
+  useEffect(() => {
+    document.documentElement.dataset.controlTheme = theme;
+    document.documentElement.dataset.controlDensity = density;
+    window.localStorage.setItem('netz-control-theme', theme);
+    window.localStorage.setItem('netz-control-density', density);
+  }, [density, theme]);
 
   useEffect(() => {
     if (preview) return;
@@ -148,6 +157,8 @@ export function AdminApp({ user, preview, role }: { user: User | null; preview: 
           <div className="topbar-search global-search"><Search size={17} /><input value={globalSearch} onChange={event => setGlobalSearch(event.target.value)} placeholder="Buscar cliente, RUT o Conta…" />{searchMatches.length > 0 && <div className="global-search-results">{searchMatches.map(row => <button key={row.id} onClick={() => { setGlobalSearch(''); go('client', row); }}><strong>{row.name}</strong><small>{row.rut} · Conta {row.accountingCode ?? '—'}</small></button>)}</div>}</div>
           <div className="topbar-actions">
             {preview && <span className="preview-badge">Vista local</span>}
+            <button className="icon-button theme-toggle" aria-label={theme === 'dark' ? 'Usar tema claro' : 'Usar tema oscuro'} title={theme === 'dark' ? 'Tema claro' : 'Tema oscuro'} onClick={() => setTheme(value => value === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? <Sun size={17}/> : <Moon size={17}/>}</button>
+            <button className="icon-button density-toggle" aria-label={density === 'compact' ? 'Usar densidad cómoda' : 'Usar densidad compacta'} title={density === 'compact' ? 'Densidad cómoda' : 'Densidad compacta'} onClick={() => setDensity(value => value === 'compact' ? 'comfortable' : 'compact')}><Gauge size={17}/></button>
             <button className="icon-button" aria-label="Ver actividad" onClick={() => go('activity')}><Bell size={18} /></button>
             <button className="user-menu" onClick={() => setLogoutOpen(true)} title="Cerrar sesión"><EmptyAvatar initials={displayName.split(' ').map(value => value[0]).join('').slice(0,2).toUpperCase()} /><span><strong>{displayName}</strong><small>{role === 'admin' ? 'Administrador' : role === 'accountant' ? 'Contador' : 'Solo lectura'}</small></span><LogOut size={15} /></button>
           </div>
@@ -163,6 +174,7 @@ export function AdminApp({ user, preview, role }: { user: User | null; preview: 
         {!dataLoading && !dataError && screen === 'activity' && <ActivityWorkspace />}
         {!dataLoading && !dataError && screen === 'settings' && role === 'admin' && <AdminSettings preview={preview} />}
         {!dataLoading && !dataError && screen === 'client' && selected && <ClientProfileV2 client={selected} year={activeYear} month={activeMonth} reload={reloadRows} />}
+        <nav className="mobile-bottom-nav" aria-label="Navegación principal"><button className={screen==='dashboard'?'active':''} onClick={()=>go('dashboard')}><LayoutDashboard size={18}/><span>Inicio</span></button><button className={screen==='clients'?'active':''} onClick={()=>go('clients')}><Users size={18}/><span>Clientes</span></button><button className={screen==='f29'?'active':''} onClick={()=>go('f29')}><CalendarDays size={18}/><span>F29</span></button><button className={screen==='billing'?'active':''} onClick={()=>go('billing')}><CircleDollarSign size={18}/><span>Cobranza</span></button><button onClick={()=>setSidebarOpen(true)}><MoreHorizontal size={18}/><span>Más</span></button></nav>
         {logoutOpen && <div className="modal-backdrop"><section className="control-modal logout-confirm"><header><div><span>Sesión segura</span><h2>¿Cerrar sesión?</h2></div><button aria-label="Cancelar cierre" onClick={() => setLogoutOpen(false)}><X size={18}/></button></header><p>Saldrás del panel interno de Netz. Los cambios ya guardados permanecerán registrados.</p><footer><button className="button-ghost" onClick={() => setLogoutOpen(false)}>Cancelar</button><button className="button-danger" onClick={() => void signOut()}><LogOut size={14}/> Cerrar sesión</button></footer></section></div>}
       </main>
     </div>

@@ -11,6 +11,8 @@ export function AdminGate() {
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const [authStarting, setAuthStarting] = useState(false);
   const preview = import.meta.env.DEV && (!isSupabaseConfigured || new URLSearchParams(window.location.search).has('preview'));
+  const requestedPreviewRole = new URLSearchParams(window.location.search).get('role');
+  const previewRole = requestedPreviewRole === 'viewer' || requestedPreviewRole === 'accountant' ? requestedPreviewRole : 'admin';
   const startGoogleLogin = async () => {
     setAuthStarting(true);
     try { await signInWithGoogle(); }
@@ -40,7 +42,7 @@ export function AdminGate() {
   }, []);
 
   if (loading) return <div className="control-loading">Cargando entorno seguro…</div>;
-  if ((session && authorized) || preview) return <AdminApp user={session?.user ?? null} preview={preview} role={preview ? 'admin' : role} />;
+  if ((session && authorized) || preview) return <AdminApp user={session?.user ?? null} preview={preview} role={preview ? previewRole : role} />;
 
   if (session && authorized === false) return (
     <main className="control-login">

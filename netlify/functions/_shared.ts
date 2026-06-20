@@ -2,7 +2,9 @@ import type { HandlerEvent, HandlerResponse } from '@netlify/functions';
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
 import { google } from 'googleapis';
 
-export type BackendContext = { supabase: SupabaseClient; user: User };
+export type EmployeeRole = 'admin' | 'accountant' | 'viewer';
+export type EmployeeAccess = { role: EmployeeRole; is_active: boolean; safelisted: boolean };
+export type BackendContext = { supabase: SupabaseClient; user: User; role: EmployeeRole };
 export type AttachmentInput = { source: 'drive' | 'storage'; document_id?: string; path?: string; file_name?: string; mime_type?: string; size_bytes?: number };
 
 export const json = (statusCode: number, body: Record<string, unknown>): HandlerResponse => ({
@@ -11,7 +13,16 @@ export const json = (statusCode: number, body: Record<string, unknown>): Handler
   body: JSON.stringify(body),
 });
 
-export async function authenticate(event: HandlerEvent): Promise<BackendContext> {
+export function authorizeEmployee(access: EmployeeAccess, required: 'view' | 'operate' | 'admin' = 'operate') {
+  const allowed = access.is_active && access.safelisted && (
+    required === 'view' ||
+    (required === 'operate' && (access.role === 'admin' || access.role === 'accountant')) ||
+    (required === 'admin' && access.role === 'admin')
+  );
+  if (!allowed) throw Object.assign(new Error('Forbidden'), { statusCode: 403, code: 'forbidden' });
+}
+
+export async function authenticate(event: HandlerEvent, required: 'view' | 'operate' | 'admin' = 'operate'): Promise<BackendContext> {
   const authHeader = event.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) throw Object.assign(new Error('Unauthorized'), { statusCode: 401 });
   const url = process.env.SUPABASE_URL;
@@ -20,14 +31,27 @@ export async function authenticate(event: HandlerEvent): Promise<BackendContext>
   const supabase = createClient(url, key, { auth: { persistSession: false } });
   const { data: { user } } = await supabase.auth.getUser(authHeader.slice(7));
   if (!user) throw Object.assign(new Error('Invalid session'), { statusCode: 401 });
-  const { data: profile } = await supabase.from('profiles').select('is_active').eq('id', user.id).single();
-  if (!profile?.is_active) throw Object.assign(new Error('Employee access required'), { statusCode: 403 });
-  return { supabase, user };
+  const { data: profile } = await supabase.from('profiles').select('email,is_active,role').eq('id', user.id).single();
+  const { data: allowlist } = profile?.email
+    ? await supabase.from('employee_email_allowlist').select('is_active,role').eq('email', String(profile.email).toLowerCase()).maybeSingle()
+    : { data: null };
+  const role = profile?.role as EmployeeRole | undefined;
+  const safelisted = Boolean(allowlist?.is_active && allowlist.role === role);
+  const access: EmployeeAccess = { role: role ?? 'viewer', is_active: Boolean(profile?.is_active), safelisted };
+  authorizeEmployee(access, required);
+  return { supabase, user, role: access.role };
 }
 
 export function parseBody<T>(event: HandlerEvent): T {
   try { return JSON.parse(event.body ?? '{}') as T; }
   catch { throw Object.assign(new Error('Invalid JSON body'), { statusCode: 400 }); }
+}
+
+export async function requireClientPeriod(supabase: SupabaseClient, clientId: string, f29PeriodId: string) {
+  if (!clientId || !f29PeriodId) throw Object.assign(new Error('Client and F29 period are required'), { statusCode: 400 });
+  const { data } = await supabase.from('f29_periods').select('id,client_id').eq('id', f29PeriodId).eq('client_id', clientId).maybeSingle();
+  if (!data) throw Object.assign(new Error('F29 period does not belong to the client'), { statusCode: 404, code: 'client_period_mismatch' });
+  return data;
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

@@ -1,8 +1,8 @@
 import type { Handler, HandlerResponse } from '@netlify/functions';
-import { createClient } from '@supabase/supabase-js';
 import { google } from 'googleapis';
 import { Readable } from 'node:stream';
 import { inferDocumentType } from './drive-scan';
+import { authenticate, functionError } from './_shared';
 
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
@@ -16,15 +16,10 @@ const periodMatch = (path: string, year: number, month: number) => {
 
 export const handler: Handler = async event => {
   if (event.httpMethod !== 'POST') return json(405, { error: 'Method not allowed' });
-  const authHeader = event.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) return json(401, { error: 'Unauthorized' });
-  const url = process.env.SUPABASE_URL; const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return json(500, { error: 'Supabase server configuration is missing' });
-  const supabase = createClient(url, key, { auth: { persistSession: false } });
-  const { data: { user } } = await supabase.auth.getUser(authHeader.slice(7));
-  if (!user) return json(401, { error: 'Invalid session' });
-  const { data: profile } = await supabase.from('profiles').select('is_active').eq('id', user.id).single();
-  if (!profile?.is_active) return json(403, { error: 'Employee access required' });
+  let context: Awaited<ReturnType<typeof authenticate>>;
+  try { context = await authenticate(event); }
+  catch (error) { return functionError(error); }
+  const { supabase, user } = context;
 
   let input: { client_id?: string; year?: number; month?: number; file_name?: string; mime_type?: string; content_base64?: string };
   try { input = JSON.parse(event.body ?? '{}'); } catch { return json(400, { error: 'Invalid JSON body' }); }

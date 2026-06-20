@@ -1,11 +1,12 @@
 import type { Handler } from '@netlify/functions';
-import { authenticate, functionError, json, parseBody } from './_shared';
+import { authenticate, functionError, json, parseBody, requireClientPeriod } from './_shared';
 
 export const handler: Handler = async event => {
   if (event.httpMethod !== 'POST') return json(405, { error: 'Method not allowed' });
   try {
     const { supabase, user } = await authenticate(event);
     const input = parseBody<{ client_id: string; f29_period_id: string; path: string; file_name: string; mime_type: string; size_bytes: number }>(event);
+    await requireClientPeriod(supabase, input.client_id, input.f29_period_id);
     if (!input.path.startsWith(`${input.client_id}/${input.f29_period_id}/`) || input.path.includes('..')) throw Object.assign(new Error('Invalid attachment path'), { statusCode: 400 });
     const { data: files } = await supabase.storage.from('email-attachments').list(input.path.split('/').slice(0, -1).join('/'), { search: input.path.split('/').pop() });
     if (!files?.some(file => input.path.endsWith(`/${file.name}`))) throw Object.assign(new Error('Uploaded file was not found'), { statusCode: 404 });

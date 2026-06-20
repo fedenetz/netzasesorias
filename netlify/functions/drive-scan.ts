@@ -1,6 +1,6 @@
 import type { Handler, HandlerResponse } from '@netlify/functions';
-import { createClient } from '@supabase/supabase-js';
 import { google } from 'googleapis';
+import { authenticate, functionError } from './_shared';
 
 const DRIVE_READ_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
 const DRIVE_FULL_SCOPE = 'https://www.googleapis.com/auth/drive';
@@ -49,20 +49,10 @@ const json = (statusCode: number, body: Record<string, unknown>): HandlerRespons
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== 'POST') return json(405, { error: 'Method not allowed' });
-  const authHeader = event.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) return json(401, { error: 'Unauthorized' });
-
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !serviceRoleKey) return json(500, { error: 'Supabase server configuration is missing' });
-
-  const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
-  const token = authHeader.slice(7);
-  const { data: { user } } = await supabase.auth.getUser(token);
-  if (!user) return json(401, { error: 'Invalid session' });
-
-  const { data: profile } = await supabase.from('profiles').select('is_active').eq('id', user.id).single();
-  if (!profile?.is_active) return json(403, { error: 'Employee access required' });
+  let context: Awaited<ReturnType<typeof authenticate>>;
+  try { context = await authenticate(event); }
+  catch (error) { return functionError(error); }
+  const { supabase, user } = context;
 
   const googleAccessToken = event.headers['x-google-access-token'];
   if (!googleAccessToken) return json(401, { code: 'drive_reauth_required', error: 'Autoriza Google Drive nuevamente para continuar.' });

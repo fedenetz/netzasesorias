@@ -21,6 +21,8 @@ declare
   viewer_id uuid := '10000000-0000-0000-0000-000000000003';
   inactive_id uuid := '10000000-0000-0000-0000-000000000004';
   unsafe_id uuid := '10000000-0000-0000-0000-000000000005';
+  test_client_id uuid;
+  affected integer;
   candidate text;
 begin
   insert into auth.users (id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
@@ -46,6 +48,10 @@ begin
     ('security-inactive@example.test','Inactive','accountant',false,inactive_id)
   on conflict(email) do update set role=excluded.role,is_active=excluded.is_active,profile_id=excluded.profile_id;
 
+  -- RLS is bypassed by the database owner. All authorization assertions below must
+  -- execute as the same PostgreSQL role used by Supabase API requests.
+  execute 'set local role authenticated';
+
   foreach candidate in array array[admin_id::text,accountant_id::text,viewer_id::text,inactive_id::text,unsafe_id::text] loop
     perform set_config('request.jwt.claims', json_build_object('sub',candidate,'role','authenticated')::text, true);
     if candidate in (admin_id::text,accountant_id::text,viewer_id::text) and not public.can_view() then raise exception '% should view', candidate; end if;
@@ -54,15 +60,44 @@ begin
     if candidate in (viewer_id::text,inactive_id::text,unsafe_id::text) and public.can_operate() then raise exception '% must not operate', candidate; end if;
   end loop;
 
+  -- Accountant can create operational records and call mutation RPCs.
+  perform set_config('request.jwt.claims', json_build_object('sub',accountant_id,'role','authenticated')::text, true);
+  insert into public.clients(rut,legal_name) values ('99.999.999-9','SECURITY MATRIX CLIENT') returning id into test_client_id;
+  perform public.save_client_contact(test_client_id,null,'Security Contact','security-contact@example.test','general',false,false,true);
+
+  -- Admin can mutate operations and use the settings RPC.
+  perform set_config('request.jwt.claims', json_build_object('sub',admin_id,'role','authenticated')::text, true);
+  update public.clients set legal_name='SECURITY MATRIX CLIENT ADMIN' where id=test_client_id;
+  get diagnostics affected = row_count;
+  if affected <> 1 then raise exception 'admin UPDATE was denied'; end if;
+  perform public.manage_employee_allowlist(null,'security-new@example.test','Security New','viewer',true);
+
+  -- Viewer can read but cannot INSERT, UPDATE, DELETE, or call a mutation RPC.
   perform set_config('request.jwt.claims', json_build_object('sub',viewer_id,'role','authenticated')::text, true);
+  perform 1 from public.clients where id=test_client_id;
+  if not found then raise exception 'viewer SELECT was unexpectedly denied'; end if;
   begin
-    insert into public.clients(rut,legal_name) values ('99.999.999-9','MUST ROLLBACK');
+    insert into public.clients(rut,legal_name) values ('88.888.888-8','MUST ROLLBACK');
     raise exception 'viewer INSERT unexpectedly succeeded';
   exception when insufficient_privilege then null; end;
+  update public.clients set legal_name='VIEWER MUST NOT UPDATE' where id=test_client_id;
+  get diagnostics affected = row_count;
+  if affected <> 0 then raise exception 'viewer UPDATE unexpectedly succeeded'; end if;
+  delete from public.clients where id=test_client_id;
+  get diagnostics affected = row_count;
+  if affected <> 0 then raise exception 'viewer DELETE unexpectedly succeeded'; end if;
   begin
     perform public.save_client_contact(gen_random_uuid(),null,'Viewer','viewer@example.test','general',false,false,true);
     raise exception 'viewer mutation RPC unexpectedly succeeded';
   exception when insufficient_privilege then null; end;
+
+  -- Inactive and non-safelisted identities cannot see internal rows.
+  perform set_config('request.jwt.claims', json_build_object('sub',inactive_id,'role','authenticated')::text, true);
+  perform 1 from public.clients where id=test_client_id;
+  if found then raise exception 'inactive SELECT unexpectedly succeeded'; end if;
+  perform set_config('request.jwt.claims', json_build_object('sub',unsafe_id,'role','authenticated')::text, true);
+  perform 1 from public.clients where id=test_client_id;
+  if found then raise exception 'non-safelisted SELECT unexpectedly succeeded'; end if;
 
   -- Every operational table must expose SELECT through can_view and every mutation through can_operate.
   if exists (

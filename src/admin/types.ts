@@ -60,6 +60,17 @@ export interface ClientRow {
   taxLastReminderAt: string | null;
   taxPaymentDueDate: string | null;
   documents: number;
+  lastDriveScanAt?: string | null;
+  f29Document?: { id: string; name: string; url: string | null } | null;
+  taxRegime?: string;
+  legalType?: string;
+  legalRepresentativeEmail?: string;
+  economicActivity?: string;
+  address?: string;
+  phone?: string;
+  bankName?: string;
+  checkingAccount?: string;
+  accountingType?: 'simplified' | 'complete' | '';
   updated: string;
 }
 
@@ -92,6 +103,18 @@ export interface BillingItem {
   updatedAt: string;
 }
 
+export interface ClientBillingSummary {
+  debt: number;
+  status: BillingStatus;
+  lastPaymentAt: string | null;
+  lastPaymentAmount: number | null;
+  lastReminderAt: string | null;
+  paymentLinkActive: boolean;
+  serviceId: string | null;
+  serviceName: string;
+  subscribed: boolean;
+}
+
 export interface EmailTemplate {
   id: string;
   key: string;
@@ -110,7 +133,7 @@ export interface EmailAttachment {
   previewUrl?: string;
 }
 
-export type DocumentKind = 'f29' | 'rcv' | 'bce' | 'f22' | 'dj_1948' | 'dj_1949' | 'other';
+export type DocumentKind = 'f29' | 'rcv' | 'bce' | 'f22' | 'dj_1948' | 'dj_1949' | 'excel' | 'pdf' | 'certificate' | 'receipt' | 'contract' | 'other';
 
 export interface ClientDocument {
   id: string;
@@ -119,6 +142,8 @@ export interface ClientDocument {
   name: string;
   mimeType: string | null;
   type: DocumentKind;
+  inferredType: DocumentKind | null;
+  classificationSource: 'inferred' | 'manual';
   processingStatus: string;
   modifiedAt: string | null;
   drivePath: string;

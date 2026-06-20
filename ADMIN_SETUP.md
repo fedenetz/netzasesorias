@@ -11,6 +11,7 @@ En un proyecto nuevo, ejecutar primero `supabase/schema.sql`. Después aplicar, 
 3. `20260620_refine_f29_operations.sql`
 4. `20260621_refine_f29_mail_delivery.sql`
 5. `20260622_admin_billing_navigation.sql`
+6. `20260623_operational_usability.sql`
 
 No volver a pegar migraciones parcialmente en SQL Editor. Ejecutar siempre el archivo completo.
 
@@ -38,7 +39,7 @@ La service-role y la API key de Resend son exclusivamente server-side. Nunca usa
 - Google Cloud debe aceptar `https://PROJECT_REF.supabase.co/auth/v1/callback`.
 - Supabase Authentication debe tener Google habilitado.
 - La URL de producción y `http://127.0.0.1:4173/**` deben estar autorizadas como redirect URLs.
-- El frontend solicita acceso de solo lectura a Google Drive.
+- El frontend solicita acceso a Google Drive para leer el árbol y subir Excel F29 a la carpeta mensual. El token permanece en OAuth y no se guarda en la base de datos.
 
 ## 4. Primer administrador
 

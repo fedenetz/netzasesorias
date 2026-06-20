@@ -22,6 +22,9 @@ La aplicación evolucionó desde un control interno F29/F22 hacia una base de ge
 - Código Conta, responsable coloreado, estado F29 y billing.
 - Indexación y búsqueda transversal de documentos Drive.
 - Recarga rápida cuando un cliente no muestra documentos.
+- Recarga por cliente con cantidad, fecha de revisión y sugerencia solo si está pendiente o tiene más de 24 horas.
+- Clasificación inferida por nombre, extensión y ruta, con override manual distinguido y auditado.
+- Ficha administrativa editable: régimen, tipo jurídico, representante, actividad, dirección, teléfono, banco, cuenta y contabilidad.
 
 ### F29
 
@@ -30,6 +33,8 @@ La aplicación evolucionó desde un control interno F29/F22 hacia una base de ge
 - Monto actual/anterior en CLP, control de pago tributario y recordatorios.
 - RN Observaciones visible para todos y editable solamente por administradores.
 - Fecha del primer email y fecha límite electrónica con fines de semana/feriados.
+- Estado del Excel por cliente/período, recarga de la carpeta mensual y subida directa `.xls/.xlsx/.xlsm`, con estado por fila y auditoría.
+- Historial con próximos dos meses en prioridad visual baja, sin tratarlos como alertas.
 
 ### Email F29
 
@@ -57,6 +62,13 @@ La aplicación evolucionó desde un control interno F29/F22 hacia una base de ge
 - Creación y edición manual de cobros.
 - Estado pagado/no pagado, eventos, método, notas y vencimiento.
 - Enlaces externos HTTPS manuales y recordatorios confirmados.
+- Resumen en la ficha: plan/servicio, suscripción, deuda, último pago, recordatorio y enlace.
+
+### Interfaz e instalabilidad
+
+- Tablas compactas, mejor contraste, truncado con detalle y tarjetas apiladas en móvil.
+- Filtros compactos para búsqueda, responsable, F29, billing y documentos.
+- Manifest de `Netz Control` y service worker instalable. Solo conserva manifest/icono; navegación, funciones y datos autenticados son network-only.
 
 ### Navegación
 
@@ -75,6 +87,7 @@ La aplicación evolucionó desde un control interno F29/F22 hacia una base de ge
 - Validar en producción un envío F29 con Google Sheets/Excel y otro con imagen privada, comprobando el CID en Gmail/Outlook y el adjunto original. El entorno local no dispone de sesión Drive, storage privado ni Resend.
 - Validar en producción una cobranza con enlace de pago activo; la vista local no contiene filas del ledger.
 - División del bundle frontend; actualmente existe una advertencia no bloqueante sobre un chunk superior a 500 kB.
+- La recarga/subida enfocada requiere un escaneo previo del árbol Drive para localizar la carpeta exacta del período.
 
 ## Seguridad vigente
 
@@ -83,6 +96,12 @@ La aplicación evolucionó desde un control interno F29/F22 hacia una base de ge
 - Adjuntos en bucket privado.
 - Efectos auditados en `activity_log`.
 - `invoices` es metadata placeholder, sin emisión.
+- La subida F29 exige autorización Google Drive de lectura/escritura; el token no se persiste y debe corresponder al empleado autenticado.
+- La PWA no ofrece datos privados offline ni cachea respuestas autenticadas.
+
+## Migraciones nuevas
+
+- `20260623_operational_usability.sql`: metadata administrativa, fecha de escaneo Drive, procedencia/tipos documentales y metadata de plan/suscripción.
 
 ## Verificación más reciente (20 de junio de 2026)
 

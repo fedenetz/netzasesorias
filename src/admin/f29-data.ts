@@ -12,6 +12,16 @@ type ClientRecord = {
   f29_enabled: boolean;
   f22_enabled: boolean;
   assigned_user_id: string | null;
+  tax_regime: string | null;
+  legal_type: string | null;
+  legal_representative_email: string | null;
+  economic_activity: string | null;
+  address: string | null;
+  phone: string | null;
+  bank_name: string | null;
+  checking_account: string | null;
+  accounting_type: 'simplified' | 'complete' | null;
+  last_drive_scan_at: string | null;
   updated_at: string;
 };
 
@@ -47,17 +57,25 @@ export type PeriodHistory = Pick<PeriodRecord, 'id' | 'year' | 'month' | 'amount
 
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).map(part => part[0]).join('').slice(0, 2).toUpperCase() || '—';
 const lastUpdated = (value: string) => new Intl.DateTimeFormat('es-CL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+const monthTokens = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const isPeriodExcel = (document: { file_name: string; mime_type: string | null; drive_metadata: unknown }, year: number, month: number) => {
+  const metadata = document.drive_metadata && typeof document.drive_metadata === 'object' && !Array.isArray(document.drive_metadata) ? document.drive_metadata as Record<string, unknown> : {};
+  const text = `${String(metadata.path ?? '')}/${document.file_name}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const excel = /\.(xls|xlsx|xlsm)$/i.test(document.file_name) || /spreadsheet|excel/.test(document.mime_type ?? '');
+  const monthPattern = new RegExp(`(^|[\\/_ -])(?:0?${month}|${monthTokens[month - 1]})(?=$|[\\/_ .-])`, 'i');
+  return excel && text.includes(String(year)) && monthPattern.test(text) && (text.includes('f29') || text.includes('impuesto'));
+};
 
 export async function loadAdminRows(year: number, month: number, includeAdminObservation = false): Promise<ClientRow[]> {
   if (!supabase) return [];
   const previousMonth = month === 1 ? 12 : month - 1;
   const previousYear = month === 1 ? year - 1 : year;
   const [clientsResult, periodsResult, previousPeriodsResult, profilesResult, documentsResult] = await Promise.all([
-    supabase.from('clients').select('id,rut,legal_name,accounting_code,has_credentials,drive_folder_id,is_active,f29_enabled,f22_enabled,assigned_user_id,updated_at').eq('is_active', true).order('legal_name'),
+    supabase.from('clients').select('id,rut,legal_name,accounting_code,has_credentials,drive_folder_id,is_active,f29_enabled,f22_enabled,assigned_user_id,tax_regime,legal_type,legal_representative_email,economic_activity,address,phone,bank_name,checking_account,accounting_type,last_drive_scan_at,updated_at').eq('is_active', true).order('legal_name'),
     supabase.from('f29_periods').select('id,client_id,year,month,amount,filed_date,status_code,status_label,due_day,responsible_user_id,responsible_name,observation,email_status,sent_at,billing_status,billing_amount,billing_due_date,paid_at,payment_method,payment_notes,tax_paid,tax_paid_at,last_payment_reminder_at,tax_payment_due_date,updated_at').eq('year', year).eq('month', month),
     supabase.from('f29_periods').select('client_id,amount').eq('year', previousYear).eq('month', previousMonth),
     supabase.from('profiles').select('id,full_name,email').eq('is_active', true),
-    supabase.from('documents').select('client_id,mime_type'),
+    supabase.from('documents').select('id,client_id,file_name,mime_type,drive_web_view_link,drive_metadata'),
   ]);
   if (clientsResult.error) throw clientsResult.error;
   if (periodsResult.error) throw periodsResult.error;
@@ -70,6 +88,8 @@ export async function loadAdminRows(year: number, month: number, includeAdminObs
   const profiles = new Map((profilesResult.data ?? []).map(profile => [profile.id, { name: profile.full_name ?? 'Sin asignar', email: profile.email ?? '' }]));
   const profilesByName = new Map((profilesResult.data ?? []).map(profile => [String(profile.full_name ?? '').trim().toLowerCase(), profile.email ?? '']));
   const documentCounts = (documentsResult.data ?? []).filter(document => document.mime_type !== 'application/vnd.google-apps.folder').reduce((counts, document) => counts.set(document.client_id, (counts.get(document.client_id) ?? 0) + 1), new Map<string, number>());
+  const periodDocuments = new Map<string, { id: string; name: string; url: string | null }>();
+  for (const document of documentsResult.data ?? []) if (isPeriodExcel(document, year, month) && !periodDocuments.has(document.client_id)) periodDocuments.set(document.client_id, { id: document.id, name: document.file_name, url: document.drive_web_view_link });
 
   return (clientsResult.data as ClientRecord[]).map(client => {
     const period = periods.get(client.id);
@@ -116,6 +136,17 @@ export async function loadAdminRows(year: number, month: number, includeAdminObs
       taxLastReminderAt: period?.last_payment_reminder_at ?? null,
       taxPaymentDueDate: period?.tax_payment_due_date ?? null,
       documents: documentCounts.get(client.id) ?? 0,
+      lastDriveScanAt: client.last_drive_scan_at,
+      f29Document: periodDocuments.get(client.id) ?? null,
+      taxRegime: client.tax_regime ?? '',
+      legalType: client.legal_type ?? '',
+      legalRepresentativeEmail: client.legal_representative_email ?? '',
+      economicActivity: client.economic_activity ?? '',
+      address: client.address ?? '',
+      phone: client.phone ?? '',
+      bankName: client.bank_name ?? '',
+      checkingAccount: client.checking_account ?? '',
+      accountingType: client.accounting_type ?? '',
       updated: lastUpdated(period?.updated_at ?? client.updated_at),
     };
   });

@@ -18,6 +18,29 @@ export const inferDriveModule = (path: string): 'f29' | 'f22' | 'other' => {
   return 'other';
 };
 
+type DocumentKind = 'f29' | 'rcv' | 'bce' | 'f22' | 'dj_1948' | 'dj_1949' | 'excel' | 'pdf' | 'certificate' | 'receipt' | 'contract' | 'other';
+export const inferDocumentType = (name: string, path: string, mimeType: string | null): DocumentKind => {
+  const value = `${path}/${name}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  if (/(^|[^a-z0-9])f29([^a-z0-9]|$)|impuestos?\/.*(?:f29|formulario.?29)/.test(value)) return 'f29';
+  if (/(^|[^a-z0-9])f22([^a-z0-9]|$)|formulario.?22/.test(value)) return 'f22';
+  if (/(^|[^a-z0-9])rcv([^a-z0-9]|$)|registro.*compra.*venta/.test(value)) return 'rcv';
+  if (/(^|[^a-z0-9])bce([^a-z0-9]|$)|balance.*comprobacion/.test(value)) return 'bce';
+  if (/dj.?1948/.test(value)) return 'dj_1948';
+  if (/dj.?1949/.test(value)) return 'dj_1949';
+  if (/certificad/.test(value)) return 'certificate';
+  if (/contrato|mandato|anexo/.test(value)) return 'contract';
+  if (/comprobante|recibo|pago|transferencia/.test(value)) return 'receipt';
+  if (/\.(xls|xlsx|xlsm)$/i.test(name) || /spreadsheet|excel/.test(mimeType ?? '')) return 'excel';
+  if (/\.pdf$/i.test(name) || mimeType === 'application/pdf') return 'pdf';
+  return 'other';
+};
+
+const periodPathMatches = (path: string, year: number, month: number) => {
+  const months = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const value = path.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  return value.includes(String(year)) && new RegExp(`(^|[\\/_ -])(?:0?${month}|${months[month - 1]})(?=$|[\\/_ .-])`, 'i').test(value) && (value.includes('impuesto') || value.includes('f29'));
+};
+
 const json = (statusCode: number, body: Record<string, unknown>): HandlerResponse => ({
   statusCode,
   headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
@@ -58,8 +81,8 @@ export const handler: Handler = async (event) => {
   }
   oauth.setCredentials({ access_token: googleAccessToken });
 
-  let clientId = '';
-  try { clientId = String(JSON.parse(event.body ?? '{}').client_id ?? ''); }
+  let clientId = ''; let scope = ''; let year = 0; let month = 0;
+  try { const input = JSON.parse(event.body ?? '{}'); clientId = String(input.client_id ?? ''); scope = String(input.scope ?? ''); year = Number(input.year ?? 0); month = Number(input.month ?? 0); }
   catch { return json(400, { error: 'Invalid JSON body' }); }
   if (!clientId) return json(400, { error: 'client_id is required' });
 
@@ -70,8 +93,16 @@ export const handler: Handler = async (event) => {
   type DriveItem = { id: string; name: string; mimeType: string | null; modifiedTime: string | null; webViewLink: string | null; size: string | null; md5Checksum: string | null; path: string; parentFolderId: string; depth: number; module: 'f29' | 'f22' | 'other'; isFolder: boolean };
   type FolderQueueItem = { id: string; path: string; depth: number };
   const items: DriveItem[] = [];
-  const visitedFolders = new Set<string>([client.drive_folder_id]);
-  let frontier: FolderQueueItem[] = [{ id: client.drive_folder_id, path: '', depth: 0 }];
+  let scanRoot: FolderQueueItem = { id: client.drive_folder_id, path: '', depth: 0 };
+  if (scope === 'period') {
+    if (!year || month < 1 || month > 12) return json(400, { error: 'A valid year and month are required for a period scan.' });
+    const { data: folders } = await supabase.from('documents').select('drive_file_id,drive_metadata').eq('client_id', clientId).eq('mime_type', FOLDER_MIME_TYPE);
+    const match = (folders ?? []).map(folder => ({ id: folder.drive_file_id, metadata: folder.drive_metadata as Record<string, unknown> })).filter(folder => periodPathMatches(String(folder.metadata?.path ?? ''), year, month)).sort((a, b) => String(b.metadata?.path ?? '').length - String(a.metadata?.path ?? '').length)[0];
+    if (!match) return json(404, { error: `No se encontró la carpeta indexada de F29 para ${String(month).padStart(2, '0')}/${year}. Escanea el Drive del cliente una vez desde su ficha.` });
+    scanRoot = { id: match.id, path: String(match.metadata?.path ?? ''), depth: Number(match.metadata?.depth ?? 0) };
+  }
+  const visitedFolders = new Set<string>([scanRoot.id]);
+  let frontier: FolderQueueItem[] = [scanRoot];
   let truncated = false;
 
   const listChildren = async (folder: FolderQueueItem) => {
@@ -126,16 +157,17 @@ export const handler: Handler = async (event) => {
   let updated = 0;
   const errors: string[] = [];
   const existingIds = new Set<string>();
+  const manualTypes = new Map<string, DocumentKind>();
   for (let index = 0; index < items.length; index += 200) {
     const ids = items.slice(index, index + 200).map(item => item.id);
-    const { data, error } = await supabase.from('documents').select('drive_file_id').in('drive_file_id', ids);
+    const { data, error } = await supabase.from('documents').select('drive_file_id,document_type,classification_source').in('drive_file_id', ids);
     if (error) errors.push(`Lectura de existentes: ${error.message}`);
-    else for (const row of data ?? []) existingIds.add(row.drive_file_id);
+    else for (const row of data ?? []) { existingIds.add(row.drive_file_id); if (row.classification_source === 'manual') manualTypes.set(row.drive_file_id, row.document_type as DocumentKind); }
   }
   const scannedAt = new Date().toISOString();
   for (let index = 0; index < items.length; index += 500) {
     const batch = items.slice(index, index + 500);
-    const payload = batch.map(item => ({ client_id: client.id, drive_file_id: item.id, file_name: item.name, mime_type: item.mimeType, modified_at: item.modifiedTime, drive_web_view_link: item.webViewLink, scanned_at: scannedAt, drive_metadata: { size: item.size, md5Checksum: item.md5Checksum, path: item.path, parent_folder_id: item.parentFolderId, depth: item.depth, module: item.module, is_folder: item.isFolder }, updated_at: scannedAt }));
+    const payload = batch.map(item => { const inferred = item.isFolder ? 'other' : inferDocumentType(item.name, item.path, item.mimeType); const manual = manualTypes.get(item.id); return ({ client_id: client.id, drive_file_id: item.id, file_name: item.name, mime_type: item.mimeType, modified_at: item.modifiedTime, drive_web_view_link: item.webViewLink, document_type: manual ?? inferred, inferred_document_type: inferred, classification_source: manual ? 'manual' : 'inferred', processing_status: inferred === 'other' && !manual ? 'unclassified' : 'classified', scanned_at: scannedAt, drive_metadata: { size: item.size, md5Checksum: item.md5Checksum, path: item.path, parent_folder_id: item.parentFolderId, depth: item.depth, module: item.module, is_folder: item.isFolder }, updated_at: scannedAt }); });
     const { error } = await supabase.from('documents').upsert(payload, { onConflict: 'drive_file_id' });
     if (error) errors.push(`Lote ${Math.floor(index / 500) + 1}: ${error.message}`);
     else for (const item of batch) existingIds.has(item.id) ? updated++ : created++;
@@ -144,6 +176,7 @@ export const handler: Handler = async (event) => {
   const filesFound = items.filter(item => !item.isFolder).length;
   const foldersFound = items.length - filesFound;
   const maxDepth = items.reduce((max, item) => Math.max(max, item.depth), 0);
-  await supabase.from('activity_log').insert({ actor_id: user.id, client_id: clientId, action: 'drive_scan', entity_type: 'client', entity_id: clientId, after_data: { items_found: items.length, files_found: filesFound, folders_found: foldersFound, max_depth: maxDepth, truncated, created, updated, errors: errors.length } });
+  if (scope !== 'period') await supabase.from('clients').update({ last_drive_scan_at: scannedAt, updated_at: scannedAt }).eq('id', clientId);
+  await supabase.from('activity_log').insert({ actor_id: user.id, client_id: clientId, action: scope === 'period' ? 'f29_period_drive_scan' : 'drive_scan', entity_type: scope === 'period' ? 'f29_folder' : 'client', entity_id: scope === 'period' ? `${year}-${String(month).padStart(2, '0')}` : clientId, after_data: { year: year || null, month: month || null, folder_path: scanRoot.path || null, items_found: items.length, files_found: filesFound, folders_found: foldersFound, max_depth: maxDepth, truncated, created, updated, errors: errors.length } });
   return json(errors.length ? 207 : 200, { items_found: items.length, files_found: filesFound, folders_found: foldersFound, new_files: created, updated_files: updated, max_depth: maxDepth, truncated, errors });
 };

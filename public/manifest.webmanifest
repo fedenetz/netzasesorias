@@ -1,0 +1,13 @@
+{
+  "name": "Netz Control",
+  "short_name": "Netz Control",
+  "description": "Operaciones internas de Netz Asesorías",
+  "start_url": "/control",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f5f3",
+  "theme_color": "#212832",
+  "icons": [
+    { "src": "/brand/icono-negro.png", "sizes": "1080x1080", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { hasDriveReadScope, inferDriveModule } from '../netlify/functions/drive-scan';
+import { hasDriveReadScope, inferDocumentType, inferDriveModule } from '../netlify/functions/drive-scan';
 
 test('accepts only Google scopes that can read existing Drive folders', () => {
   assert.equal(hasDriveReadScope(['openid', 'email']), false);
@@ -13,4 +13,11 @@ test('maps nested Drive paths to the accounting workflow area', () => {
   assert.equal(inferDriveModule('Impuestos/2026/F29/Mayo/formulario.pdf'), 'f29');
   assert.equal(inferDriveModule('Renta/2026/Balances/Rectificado/bce.xlsx'), 'f22');
   assert.equal(inferDriveModule('Personal/Contratos/documento.pdf'), 'other');
+});
+
+test('infers operational document types from name, extension and folder context', () => {
+  assert.equal(inferDocumentType('resumen.xlsx', 'Impuestos/2026/F29/06/resumen.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'), 'f29');
+  assert.equal(inferDocumentType('certificado_vigencia.pdf', 'Legal/certificado_vigencia.pdf', 'application/pdf'), 'certificate');
+  assert.equal(inferDocumentType('comprobante_transferencia.pdf', 'Pagos/comprobante_transferencia.pdf', 'application/pdf'), 'receipt');
+  assert.equal(inferDocumentType('datos.xlsx', 'General/datos.xlsx', 'application/vnd.ms-excel'), 'excel');
 });

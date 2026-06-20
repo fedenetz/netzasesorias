@@ -1,5 +1,6 @@
 import type { Handler } from '@netlify/functions';
 import { authenticate, functionError, json, loadAttachments, parseBody, renderTemplate, resolveEmployeeEmail, sanitizeHtml, sendWithResend, validateEmails, type AttachmentInput } from './_shared';
+import { renderNetzEmail } from '../../src/shared/email-template';
 
 type Input = { f29_period_id: string; to: string[]; cc?: string[]; subject?: string; body_html?: string; attachments?: AttachmentInput[]; schedule_next_business_morning?: boolean };
 const money = (value: number | string | null) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(Number(value ?? 0));
@@ -32,8 +33,13 @@ export const handler: Handler = async event => {
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santiago' }).format(new Date());
     const variables = { client_name: String(client?.legal_name ?? 'Cliente'), month_name: months[period.month - 1], year: String(period.year), amount: money(period.amount), filed_date: date(period.filed_date || today), payment_due_date: date(period.tax_payment_due_date), payment_status: period.status_label || 'Sin estado', firm_name: process.env.FIRM_NAME || 'Netz Asesorías' };
     const subject = renderTemplate(input.subject || template.subject, variables).replace(/[\r\n]+/g, ' ').trim();
-    const html = sanitizeHtml(renderTemplate(input.body_html || template.body_html, variables));
     const attachmentInputs = input.attachments ?? [];
+    const bodyHtml = sanitizeHtml(renderTemplate(input.body_html || template.body_html, variables));
+    const attachmentDetails = attachmentInputs.map(item => ({ name: item.file_name || 'Archivo adjunto', detail: item.source === 'drive' ? (item.mime_type === 'application/vnd.google-apps.spreadsheet' ? 'Exportado desde Google Drive · Excel' : 'Archivo de Google Drive') : 'Archivo privado adjunto' }));
+    const proofs = attachmentInputs.flatMap((item, index) => item.mime_type?.startsWith('image/') ? [{ name: item.file_name || 'Comprobante', src: `cid:proof-${index + 1}` }] : []);
+    const replyTo = process.env.RESEND_REPLY_TO_EMAIL || CONTROL_EMAIL;
+    const logoUrl = process.env.BRAND_LOGO_URL || (process.env.URL?.startsWith('https://') ? `${process.env.URL}/brand/logo-blanco.png` : undefined);
+    const html = sanitizeHtml(renderNetzEmail({ title: 'Formulario 29 del período', eyebrow: 'Información tributaria', clientName: variables.client_name, periodOrConcept: `${variables.month_name} ${variables.year}`, bodyHtml, summary: [{ label: 'Período', value: `${variables.month_name} ${variables.year}` }, { label: 'Monto informado', value: variables.amount }, { label: 'Estado', value: variables.payment_status }, { label: 'Fecha de presentación', value: variables.filed_date }, { label: 'Fecha de pago', value: variables.payment_due_date }], attachments: attachmentDetails, proofs, responsibleName: period.responsible_name || undefined, replyTo, logoUrl }));
     const from = process.env.RESEND_FROM_EMAIL || 'Netz Asesorías <operaciones@example.com>';
     const { data: log, error: logError } = await context.supabase.from('email_logs').insert({ client_id: period.client_id, f29_period_id: period.id, template_id: template.id, message_kind: 'f29_summary', from_email: from, to_emails: to, cc_emails: cc, subject, body_html: html, attachments: attachmentInputs, status: 'sending', sent_by: context.user.id }).select('id').single();
     if (logError || !log) throw logError || new Error('Unable to create email log');
@@ -45,7 +51,7 @@ export const handler: Handler = async event => {
       if (scheduleError || !scheduleValue) throw scheduleError || new Error('No fue posible calcular el próximo día hábil.');
       scheduledAt = String(scheduleValue);
     }
-    const providerId = await sendWithResend({ from, to, cc, subject, html, attachments, ...(scheduledAt ? { scheduled_at: scheduledAt } : {}), reply_to: process.env.RESEND_REPLY_TO_EMAIL || CONTROL_EMAIL }, log.id);
+    const providerId = await sendWithResend({ from, to, cc, subject, html, attachments, ...(scheduledAt ? { scheduled_at: scheduledAt } : {}), reply_to: replyTo }, log.id);
     if (scheduledAt) {
       scheduled = true;
       const { error: scheduledError } = await context.supabase.rpc('mark_email_scheduled', { p_log_id: log.id, p_provider_message_id: providerId, p_scheduled_at: scheduledAt });

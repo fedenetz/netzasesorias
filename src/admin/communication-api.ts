@@ -50,9 +50,17 @@ export async function loadLastEmailRecipients(clientId: string, messageKind: 'f2
 
 export async function loadStoredAttachments(periodId: string): Promise<EmailAttachment[]> {
   if (!supabase || isLocalPreview) return [];
-  const { data, error } = await supabase.from('communication_files').select('id,source,storage_path,file_name,mime_type,size_bytes,document_id').eq('f29_period_id', periodId).order('created_at', { ascending: false });
+  const client = supabase;
+  const { data, error } = await client.from('communication_files').select('id,source,storage_path,file_name,mime_type,size_bytes,document_id').eq('f29_period_id', periodId).order('created_at', { ascending: false });
   if (error) throw error;
-  return (data ?? []).map(item => ({ id: item.id, source: item.source, documentId: item.document_id ?? undefined, path: item.storage_path ?? undefined, fileName: item.file_name, mimeType: item.mime_type ?? undefined, sizeBytes: item.size_bytes ? Number(item.size_bytes) : undefined }));
+  return Promise.all((data ?? []).map(async item => {
+    let previewUrl: string | undefined;
+    if (item.source === 'storage' && item.storage_path && String(item.mime_type ?? '').startsWith('image/')) {
+      const { data: signed } = await client.storage.from('email-attachments').createSignedUrl(item.storage_path, 60 * 30);
+      previewUrl = signed?.signedUrl;
+    }
+    return { id: item.id, source: item.source, documentId: item.document_id ?? undefined, path: item.storage_path ?? undefined, fileName: item.file_name, mimeType: item.mime_type ?? undefined, sizeBytes: item.size_bytes ? Number(item.size_bytes) : undefined, previewUrl };
+  }));
 }
 
 export async function uploadEmailAttachment(clientId: string, periodId: string, file: File): Promise<EmailAttachment> {
@@ -62,7 +70,8 @@ export async function uploadEmailAttachment(clientId: string, periodId: string, 
   if (error) throw error;
   const registered = await invoke('register-email-attachment', { client_id: clientId, f29_period_id: periodId, path: prepared.path, file_name: file.name, mime_type: file.type, size_bytes: file.size });
   const item = registered.attachment;
-  return { id: item.id, source: 'storage', path: item.storage_path, fileName: item.file_name, mimeType: item.mime_type, sizeBytes: Number(item.size_bytes) };
+  const { data: signed } = file.type.startsWith('image/') ? await supabase.storage.from('email-attachments').createSignedUrl(item.storage_path, 60 * 30) : { data: null };
+  return { id: item.id, source: 'storage', path: item.storage_path, fileName: item.file_name, mimeType: item.mime_type, sizeBytes: Number(item.size_bytes), previewUrl: signed?.signedUrl };
 }
 
 export const driveAttachment = (document: ClientDocument): EmailAttachment => ({ source: 'drive', documentId: document.id, fileName: document.name, mimeType: document.mimeType ?? undefined });
@@ -72,6 +81,6 @@ export async function resolveEmployeeDirectoryEmail(fullName: string): Promise<s
   return String(result.email ?? '');
 }
 
-export const sendF29Email = (periodId: string, to: string[], cc: string[], subject: string, bodyHtml: string, attachments: EmailAttachment[], scheduleNextBusinessMorning = false) => invoke('send-email', { f29_period_id: periodId, to, cc, subject, body_html: bodyHtml, attachments: attachments.map(item => ({ source: item.source, document_id: item.documentId, path: item.path, file_name: item.fileName, mime_type: item.mimeType })), schedule_next_business_morning: scheduleNextBusinessMorning }, true);
+export const sendF29Email = (periodId: string, to: string[], cc: string[], subject: string, bodyHtml: string, attachments: EmailAttachment[], scheduleNextBusinessMorning = false) => invoke('send-email', { f29_period_id: periodId, to, cc, subject, body_html: bodyHtml, attachments: attachments.map(item => ({ source: item.source, document_id: item.documentId, path: item.path, file_name: item.fileName, mime_type: item.mimeType, size_bytes: item.sizeBytes })), schedule_next_business_morning: scheduleNextBusinessMorning }, true);
 export const sendReminder = (billingItemId: string, to: string[], cc: string[], subject: string, bodyHtml: string) => invoke('send-reminder', { billing_item_id: billingItemId, to, cc, subject, body_html: bodyHtml });
 export const sendF29PaymentReminder = (periodId: string, to: string[], cc: string[], subject: string, bodyHtml: string) => invoke('send-reminder', { f29_period_id: periodId, to, cc, subject, body_html: bodyHtml });

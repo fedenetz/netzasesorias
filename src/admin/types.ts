@@ -107,6 +107,7 @@ export interface EmailAttachment {
   fileName: string;
   mimeType?: string;
   sizeBytes?: number;
+  previewUrl?: string;
 }
 
 export type DocumentKind = 'f29' | 'rcv' | 'bce' | 'f22' | 'dj_1948' | 'dj_1949' | 'other';

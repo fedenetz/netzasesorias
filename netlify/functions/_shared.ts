@@ -3,7 +3,7 @@ import { createClient, type SupabaseClient, type User } from '@supabase/supabase
 import { google } from 'googleapis';
 
 export type BackendContext = { supabase: SupabaseClient; user: User };
-export type AttachmentInput = { source: 'drive' | 'storage'; document_id?: string; path?: string; file_name?: string; mime_type?: string };
+export type AttachmentInput = { source: 'drive' | 'storage'; document_id?: string; path?: string; file_name?: string; mime_type?: string; size_bytes?: number };
 
 export const json = (statusCode: number, body: Record<string, unknown>): HandlerResponse => ({
   statusCode,
@@ -67,7 +67,7 @@ export async function resolveEmployeeEmail(supabase: SupabaseClient, profileId?:
 }
 
 export async function loadAttachments(event: HandlerEvent, supabase: SupabaseClient, inputs: AttachmentInput[], expectedClientId: string) {
-  const output: Array<{ filename: string; content: string; content_type?: string }> = [];
+  const output: Array<{ filename: string; content: string; content_type?: string; content_id?: string }> = [];
   let total = 0;
   for (const input of inputs) {
     let bytes: Uint8Array;
@@ -89,21 +89,25 @@ export async function loadAttachments(event: HandlerEvent, supabase: SupabaseCli
       const oauth = new google.auth.OAuth2();
       oauth.setCredentials({ access_token: token });
       const drive = google.drive({ version: 'v3', auth: oauth });
-      if (document.mime_type === 'application/vnd.google-apps.spreadsheet') {
-        const response = await drive.files.export({ fileId: document.drive_file_id, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }, { responseType: 'arraybuffer' });
-        bytes = new Uint8Array(response.data as ArrayBuffer);
-        filename = document.file_name.toLowerCase().endsWith('.xlsx') ? document.file_name : `${document.file_name}.xlsx`;
-        contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-      } else {
-        const response = await drive.files.get({ fileId: document.drive_file_id, alt: 'media' }, { responseType: 'arraybuffer' });
-        bytes = new Uint8Array(response.data as ArrayBuffer);
-        filename = document.file_name;
-        contentType = document.mime_type ?? undefined;
+      try {
+        if (document.mime_type === 'application/vnd.google-apps.spreadsheet') {
+          const response = await drive.files.export({ fileId: document.drive_file_id, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }, { responseType: 'arraybuffer' });
+          bytes = new Uint8Array(response.data as ArrayBuffer);
+          filename = document.file_name.toLowerCase().endsWith('.xlsx') ? document.file_name : `${document.file_name}.xlsx`;
+          contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        } else {
+          const response = await drive.files.get({ fileId: document.drive_file_id, alt: 'media' }, { responseType: 'arraybuffer' });
+          bytes = new Uint8Array(response.data as ArrayBuffer);
+          filename = document.file_name;
+          contentType = document.mime_type ?? undefined;
+        }
+      } catch {
+        throw Object.assign(new Error(`No se pudo cargar o exportar el adjunto de Drive: ${document.file_name}. El correo no fue enviado.`), { statusCode: 400 });
       }
     }
     total += bytes.byteLength;
     if (total > 10 * 1024 * 1024) throw Object.assign(new Error('Attachments exceed the 10 MB combined limit'), { statusCode: 413 });
-    output.push({ filename, content: Buffer.from(bytes).toString('base64'), content_type: contentType });
+    output.push({ filename, content: Buffer.from(bytes).toString('base64'), content_type: contentType, ...(contentType?.startsWith('image/') ? { content_id: `proof-${output.length + 1}` } : {}) });
   }
   return output;
 }

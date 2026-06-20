@@ -27,6 +27,8 @@ RESEND_API_KEY=re_...
 RESEND_FROM_EMAIL=Netz Asesorías <impuestos@netzasesorias.cl>
 RESEND_REPLY_TO_EMAIL=richard@ainahue.cl
 FIRM_NAME=Netz Asesorías
+# Opcional. Si se omite, Netlify usa URL/brand/logo-blanco.png y, si no está disponible, muestra el nombre de la firma.
+BRAND_LOGO_URL=https://www.example.com/brand/logo-blanco.png
 ```
 
 La service-role y la API key de Resend son exclusivamente server-side. Nunca usar prefijo `VITE_` para ellas.

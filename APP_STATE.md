@@ -1,6 +1,6 @@
 # Estado actual de Netz Control
 
-Fecha de corte: 19 de junio de 2026.
+Fecha de corte: 20 de junio de 2026.
 
 ## Estado general
 
@@ -38,6 +38,17 @@ La aplicación evolucionó desde un control interno F29/F22 hacia una base de ge
 - Adjuntos privados, Drive, Google Sheets exportadas y screenshots pegadas.
 - Envío inmediato o próximo día hábil a las 08:00 Chile.
 - Logs de intentos exitosos/fallidos e idempotencia de Resend.
+- Barra de acciones fija en escritorio y móvil, con estados de carga que bloquean cierres o envíos duplicados.
+- Revisión detallada de adjuntos con nombre, tipo, tamaño, origen, quitar/reemplazar y miniatura firmada para comprobantes privados.
+- Los comprobantes de imagen seleccionados se muestran dentro del HTML mediante CID y conservan además el archivo adjunto original.
+- Los errores de subida, descarga o exportación bloquean la entrega y muestran el archivo afectado; el intento continúa registrándose como fallido en `email_logs`.
+
+### Plantilla de correo compartida
+
+- F29, recordatorios de pago F29 y cobranza usan el mismo renderer HTML compatible con clientes de correo.
+- Encabezado sobrio, logo existente con fallback de nombre, título, cliente, período/concepto, resumen, instrucciones, archivos/comprobantes, firma responsable y pie de respuesta.
+- Cobranza muestra cliente, monto, vencimiento, servicio/concepto y el enlace HTTPS manual cuando existe, tanto en preview como en el correo enviado.
+- El logo usa `BRAND_LOGO_URL` si está configurado; en Netlify cae a `URL/brand/logo-blanco.png` y finalmente al nombre `Netz Asesorías`.
 
 ### Billing
 
@@ -61,6 +72,8 @@ La aplicación evolucionó desde un control interno F29/F22 hacia una base de ge
 - Calendario de feriados posteriores a 2027.
 - Confirmar en producción que todas las migraciones hasta `20260622` estén aplicadas.
 - Validar al menos un envío programado completo en el deploy real.
+- Validar en producción un envío F29 con Google Sheets/Excel y otro con imagen privada, comprobando el CID en Gmail/Outlook y el adjunto original. El entorno local no dispone de sesión Drive, storage privado ni Resend.
+- Validar en producción una cobranza con enlace de pago activo; la vista local no contiene filas del ledger.
 - División del bundle frontend; actualmente existe una advertencia no bloqueante sobre un chunk superior a 500 kB.
 
 ## Seguridad vigente
@@ -71,9 +84,9 @@ La aplicación evolucionó desde un control interno F29/F22 hacia una base de ge
 - Efectos auditados en `activity_log`.
 - `invoices` es metadata placeholder, sin emisión.
 
-## Verificación más reciente
+## Verificación más reciente (20 de junio de 2026)
 
-- TypeScript sin errores.
-- Build Vite de producción exitoso.
-- 12 pruebas automatizadas exitosas.
-- Verificación visual de Configuración, Billing, Documentos, Actividad y búsqueda global.
+- `npx tsc --noEmit` sin errores (ejecutado como `npx.cmd` en Windows).
+- Build Vite de producción exitoso; persiste la advertencia no bloqueante del chunk superior a 500 kB.
+- 14 pruebas automatizadas exitosas, incluidas estructura F29, CID de comprobante y enlace de pago en la plantilla compartida.
+- Verificación visual del compositor F29 en 1280×720 y 390×844: acciones visibles, área desplazable sin solapamiento y HTML final legible.

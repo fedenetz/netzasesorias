@@ -54,12 +54,18 @@ begin
 
   -- Every operational table must expose SELECT through can_view and every mutation through can_operate.
   if exists (
-    select 1 from unnest(array['clients','periods','period_status_fields','f29_periods','f22_periods','documents','observations','activity_log','client_contacts','email_templates','services','client_services','billing_items','payment_links','payment_events','communication_files','email_logs','invoices','chile_holidays']) t
+    select 1 from unnest(array['clients','periods','period_status_fields','f29_periods','f22_periods','documents','observations','activity_log','client_contacts','client_services','billing_items','payment_links','payment_events','communication_files','email_logs','invoices']) t
     where not exists (select 1 from pg_policies p where p.schemaname='public' and p.tablename=t and p.cmd='SELECT' and p.qual like '%can_view%')
        or not exists (select 1 from pg_policies p where p.schemaname='public' and p.tablename=t and p.cmd='INSERT' and p.with_check like '%can_operate%')
        or not exists (select 1 from pg_policies p where p.schemaname='public' and p.tablename=t and p.cmd='UPDATE' and p.qual like '%can_operate%')
        or not exists (select 1 from pg_policies p where p.schemaname='public' and p.tablename=t and p.cmd='DELETE' and p.qual like '%can_operate%')
   ) then raise exception 'One or more operational policy matrices are incomplete'; end if;
+  if exists (
+    select 1 from unnest(array['email_templates','services','chile_holidays']) t
+    where not exists (select 1 from pg_policies p where p.schemaname='public' and p.tablename=t and p.cmd='INSERT' and p.with_check like '%is_admin%')
+       or not exists (select 1 from pg_policies p where p.schemaname='public' and p.tablename=t and p.cmd='UPDATE' and p.qual like '%is_admin%')
+       or not exists (select 1 from pg_policies p where p.schemaname='public' and p.tablename=t and p.cmd='DELETE' and p.qual like '%is_admin%')
+  ) then raise exception 'One or more settings tables are writable by non-admin roles'; end if;
 end $$;
 
 rollback;

@@ -59,7 +59,7 @@ grant execute on function public.is_admin() to authenticated, service_role;
 
 -- Rebuild public-table policies so no mutation is authorized by employee activity alone.
 do $$
-declare t text; p record;
+declare t text; p record; write_guard text;
 begin
   foreach t in array array[
     'clients','periods','period_status_fields','f29_periods','f22_periods','documents',
@@ -72,10 +72,11 @@ begin
     for p in select policyname from pg_policies where schemaname = 'public' and tablename = t loop
       execute format('drop policy %I on public.%I', p.policyname, t);
     end loop;
+    write_guard := case when t in ('email_templates','services','chile_holidays') then 'public.is_admin()' else 'public.can_operate()' end;
     execute format('create policy %I on public.%I for select using (public.can_view())', 'authorized read ' || t, t);
-    execute format('create policy %I on public.%I for insert with check (public.can_operate())', 'operators insert ' || t, t);
-    execute format('create policy %I on public.%I for update using (public.can_operate()) with check (public.can_operate())', 'operators update ' || t, t);
-    execute format('create policy %I on public.%I for delete using (public.can_operate())', 'operators delete ' || t, t);
+    execute format('create policy %I on public.%I for insert with check (%s)', 'authorized insert ' || t, t, write_guard);
+    execute format('create policy %I on public.%I for update using (%s) with check (%s)', 'authorized update ' || t, t, write_guard, write_guard);
+    execute format('create policy %I on public.%I for delete using (%s)', 'authorized delete ' || t, t, write_guard);
   end loop;
 end $$;
 

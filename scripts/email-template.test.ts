@@ -12,6 +12,8 @@ test('renders the production F29 structure and inline proof reference', () => {
   assert.match(html, /f29\.xlsx/);
   assert.match(html, /src="cid:proof-2"/);
   assert.match(html, /Camila Soto/);
+  assert.match(html, /Contabilidad · Tributación · Gestión/);
+  assert.match(html, /Concepción, Chile/);
 });
 
 test('renders cobranza values and an explicit HTTPS payment link', () => {

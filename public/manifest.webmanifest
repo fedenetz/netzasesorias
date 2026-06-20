@@ -1,10 +1,14 @@
 {
   "name": "Netz Control",
   "short_name": "Netz Control",
+  "id": "/control",
+  "lang": "es-CL",
   "description": "Operaciones internas de Netz Asesorías",
   "start_url": "/control",
   "scope": "/",
   "display": "standalone",
+  "orientation": "any",
+  "categories": ["business", "finance", "productivity"],
   "background_color": "#f4f5f3",
   "theme_color": "#212832",
   "icons": [

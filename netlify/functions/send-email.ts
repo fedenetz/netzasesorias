@@ -35,7 +35,7 @@ export const handler: Handler = async event => {
     const subject = renderTemplate(input.subject || template.subject, variables).replace(/[\r\n]+/g, ' ').trim();
     const attachmentInputs = input.attachments ?? [];
     const bodyHtml = sanitizeHtml(renderTemplate(input.body_html || template.body_html, variables));
-    const attachmentDetails = attachmentInputs.map(item => ({ name: item.file_name || 'Archivo adjunto', detail: item.source === 'drive' ? (item.mime_type === 'application/vnd.google-apps.spreadsheet' ? 'Exportado desde Google Drive · Excel' : 'Archivo de Google Drive') : 'Archivo privado adjunto' }));
+    const attachmentDetails = attachmentInputs.map(item => ({ name: item.file_name || 'Archivo adjunto', detail: item.mime_type?.startsWith('image/') ? 'Comprobante visual · se muestra en el correo y se adjunta' : item.source === 'drive' ? (item.mime_type === 'application/vnd.google-apps.spreadsheet' ? 'Exportado desde Google Drive · Excel' : 'Archivo de Google Drive') : 'Archivo privado adjunto' }));
     const proofs = attachmentInputs.flatMap((item, index) => item.mime_type?.startsWith('image/') ? [{ name: item.file_name || 'Comprobante', src: `cid:proof-${index + 1}` }] : []);
     const replyTo = process.env.RESEND_REPLY_TO_EMAIL || CONTROL_EMAIL;
     const logoUrl = process.env.BRAND_LOGO_URL || (process.env.URL?.startsWith('https://') ? `${process.env.URL}/brand/logo-blanco.png` : undefined);

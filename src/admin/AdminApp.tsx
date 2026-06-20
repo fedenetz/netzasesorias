@@ -62,6 +62,7 @@ export function AdminApp({ user, preview, role }: { user: User | null; preview: 
   const [dataError, setDataError] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [saveStates, setSaveStates] = useState<Record<string, 'saving' | 'saved' | 'error'>>({});
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   useEffect(() => {
     if (preview) return;
@@ -120,7 +121,7 @@ export function AdminApp({ user, preview, role }: { user: User | null; preview: 
   const displayName = String(user?.user_metadata?.full_name ?? 'Camila Soto');
   const [globalSearch, setGlobalSearch] = useState('');
   const searchMatches = globalSearch.trim() ? rows.filter(row => `${row.name} ${row.rut} ${row.accountingCode ?? ''}`.toLowerCase().includes(globalSearch.toLowerCase())).slice(0, 6) : [];
-  const signOut = () => void supabase?.auth.signOut();
+  const signOut = async () => { setLogoutOpen(false); await supabase?.auth.signOut(); };
 
   return (
     <div className="control-shell">
@@ -146,7 +147,7 @@ export function AdminApp({ user, preview, role }: { user: User | null; preview: 
           <div className="topbar-actions">
             {preview && <span className="preview-badge">Vista local</span>}
             <button className="icon-button" aria-label="Ver actividad" onClick={() => go('activity')}><Bell size={18} /></button>
-            <button className="user-menu" onClick={signOut} title="Cerrar sesión"><EmptyAvatar initials={displayName.split(' ').map(value => value[0]).join('').slice(0,2).toUpperCase()} /><span><strong>{displayName}</strong><small>{role === 'admin' ? 'Administrador' : role === 'accountant' ? 'Contador' : 'Solo lectura'}</small></span><LogOut size={15} /></button>
+            <button className="user-menu" onClick={() => setLogoutOpen(true)} title="Cerrar sesión"><EmptyAvatar initials={displayName.split(' ').map(value => value[0]).join('').slice(0,2).toUpperCase()} /><span><strong>{displayName}</strong><small>{role === 'admin' ? 'Administrador' : role === 'accountant' ? 'Contador' : 'Solo lectura'}</small></span><LogOut size={15} /></button>
           </div>
         </header>
         {dataLoading && <div className="control-data-state">Cargando datos de Supabase…</div>}
@@ -160,6 +161,7 @@ export function AdminApp({ user, preview, role }: { user: User | null; preview: 
         {!dataLoading && !dataError && screen === 'activity' && <ActivityWorkspace />}
         {!dataLoading && !dataError && screen === 'settings' && role === 'admin' && <AdminSettings preview={preview} />}
         {!dataLoading && !dataError && screen === 'client' && selected && <ClientProfileV2 client={selected} year={activeYear} month={activeMonth} reload={reloadRows} />}
+        {logoutOpen && <div className="modal-backdrop"><section className="control-modal logout-confirm"><header><div><span>Sesión segura</span><h2>¿Cerrar sesión?</h2></div><button aria-label="Cancelar cierre" onClick={() => setLogoutOpen(false)}><X size={18}/></button></header><p>Saldrás del panel interno de Netz. Los cambios ya guardados permanecerán registrados.</p><footer><button className="button-ghost" onClick={() => setLogoutOpen(false)}>Cancelar</button><button className="button-danger" onClick={() => void signOut()}><LogOut size={14}/> Cerrar sesión</button></footer></section></div>}
       </main>
     </div>
   );

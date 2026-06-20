@@ -1,138 +1,97 @@
-# Netz Control · Supabase setup
+# Configuración administrativa de Netz Control
 
-The internal workspace uses Google OAuth plus an explicit employee allowlist. A successful Google login is not enough: `profiles.is_active` must also be true, and RLS enforces this on every operational table.
+Última actualización: 19 de junio de 2026.
 
-## 1. Create the database
+## 1. Orden de base de datos
 
-Do this before the first login.
+En un proyecto nuevo, ejecutar primero `supabase/schema.sql`. Después aplicar, en orden:
 
-1. Open the Supabase project.
-2. Go to **SQL Editor** → **New query**.
-3. Paste all of `supabase/schema.sql` and select **Run**.
-4. In **Table Editor**, confirm these tables exist: `profiles`, `clients`, `f29_periods`, `periods`, `period_status_fields`, `documents`, `observations`, and `activity_log`.
+1. `20260618_add_f22_periods.sql`
+2. `20260619_add_email_billing_foundation.sql`
+3. `20260620_refine_f29_operations.sql`
+4. `20260621_refine_f29_mail_delivery.sql`
+5. `20260622_admin_billing_navigation.sql`
 
-The schema enables RLS and creates the Google-user profile trigger. It is intended to run once on a new project.
+No volver a pegar migraciones parcialmente en SQL Editor. Ejecutar siempre el archivo completo.
 
-## 2. Get the application keys
+## 2. Variables de Netlify
 
-From the project's **Connect** dialog or **Project Settings** → **API Keys**, copy:
-
-- Project URL → `VITE_SUPABASE_URL` and `SUPABASE_URL`.
-- Publishable key → `VITE_SUPABASE_PUBLISHABLE_KEY`.
-- Secret/service-role key → `SUPABASE_SERVICE_ROLE_KEY`.
-
-Only the publishable key may use the `VITE_` prefix. Never place the secret/service-role key in browser code, commit it, or share it in chat.
-
-Create `.env.local` in the repository root:
+Obligatorias:
 
 ```dotenv
 VITE_SUPABASE_URL=https://PROJECT_REF.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY
+VITE_SUPABASE_PUBLISHABLE_KEY=...
 SUPABASE_URL=https://PROJECT_REF.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=YOUR_SERVER_ONLY_KEY
+SUPABASE_SERVICE_ROLE_KEY=...
+RESEND_API_KEY=re_...
+RESEND_FROM_EMAIL=Netz Asesorías <impuestos@netzasesorias.cl>
+RESEND_REPLY_TO_EMAIL=richard@ainahue.cl
+FIRM_NAME=Netz Asesorías
 ```
 
-`.env.local` is gitignored. Restart Vite after creating or changing it.
+La service-role y la API key de Resend son exclusivamente server-side. Nunca usar prefijo `VITE_` para ellas.
 
-## 3. Configure Google OAuth
+## 3. Google OAuth
 
-### Google Cloud
+- Google Cloud debe aceptar `https://PROJECT_REF.supabase.co/auth/v1/callback`.
+- Supabase Authentication debe tener Google habilitado.
+- La URL de producción y `http://127.0.0.1:4173/**` deben estar autorizadas como redirect URLs.
+- El frontend solicita acceso de solo lectura a Google Drive.
 
-1. Create or select a Google Cloud project.
-2. Configure the OAuth consent screen. Use **Internal** if every employee belongs to the same Google Workspace; otherwise use **External** and add employee test users until the app is published.
-3. Create **OAuth client ID** → **Web application**.
-4. Add authorized JavaScript origins:
-   - `http://127.0.0.1:4173`
-   - `https://YOUR_PRODUCTION_DOMAIN`
-5. Add this authorized redirect URI, using the Supabase project reference:
-   - `https://PROJECT_REF.supabase.co/auth/v1/callback`
-6. Copy the Google client ID and client secret.
+## 4. Primer administrador
 
-### Supabase
-
-1. Go to **Authentication** → **Providers** → **Google**.
-2. Enable Google and paste the Google client ID and secret.
-3. Go to **Authentication** → **URL Configuration**.
-4. Set **Site URL** to the production origin, for example `https://netzasesorias.cl`.
-5. Add redirect URLs:
-   - `http://127.0.0.1:4173/**`
-   - `https://YOUR_PRODUCTION_DOMAIN/**`
-   - Add the Netlify preview URL pattern only if employee login should work on deploy previews.
-
-The frontend returns users to `/control` after Google login.
-
-## 4. Approve the first administrator
-
-1. Start the app with `npm run dev` (the project is fixed to port 4173).
-2. Open `http://127.0.0.1:4173/control` and sign in with Google.
-3. The app should show **Tu acceso aún no está habilitado**. This confirms the allowlist is working.
-4. In Supabase **SQL Editor**, run:
+El primer usuario debe iniciar sesión una vez para crear su `profile`. Luego habilitarlo temporalmente desde Supabase:
 
 ```sql
 update public.profiles
-set is_active = true,
-    role = 'admin',
-    updated_at = now()
-where email = 'YOUR_GOOGLE_EMAIL';
+set is_active = true, role = 'admin', updated_at = now()
+where email = 'CORREO_ADMIN';
 ```
 
-5. Sign out and sign in again.
+A partir de ese momento, toda la administración se realiza desde **Configuración → Equipo y acceso**.
 
-For another employee, repeat the update with role `accountant` or `viewer`. Never activate an unknown account.
+## 5. Equipo y safelist
 
-## 5. Import Formulario 29
+Para cada responsable:
 
-Run the safe dry-run first:
+1. Abrir `/settings` como administrador.
+2. Seleccionar **Autorizar correo**.
+3. Escribir el nombre operativo exactamente como aparece en F29, por ejemplo `GABRIELA`.
+4. Registrar su email Google y rol.
+5. Mantener **Acceso activo** marcado.
 
-```powershell
-npm run import:f29 -- "C:\Users\neto_\Downloads\Formulario 29.xlsx" --out=reports\f29-real-dry-run.json
-```
+El email queda disponible inmediatamente para los CC obligatorios, aunque la persona todavía no haya iniciado sesión. Cuando ingrese con Google, la cuenta se vincula automáticamente.
 
-Review the sanitized report. Then write to Supabase:
+Roles:
 
-```powershell
-npm run import:f29 -- "C:\Users\neto_\Downloads\Formulario 29.xlsx" --commit --out=reports\f29-import-committed.json
-```
+- `admin`: configuración, safelist y operaciones completas.
+- `accountant`: operación contable y comunicaciones.
+- `viewer`: lectura operacional.
 
-The importer uses the server-only key, ignores password/certificate columns, and upserts clients by RUT plus F29 periods by client/year/month.
+No desactivar ni quitar el rol admin a la propia cuenta; la RPC bloquea ese cierre accidental.
 
-## 6. Configure Netlify
+## 6. Resend y correo
 
-In **Netlify** → **Site configuration** → **Environment variables**, add:
+- El dominio de envío debe aparecer como verificado en Resend.
+- `richard@ainahue.cl` se agrega como CC de control para F29.
+- El responsable activo también se agrega como CC.
+- El cliente debe usar **Responder a todos** para que todos reciban su respuesta.
+- Los adjuntos privados tienen límite combinado de 10 MB.
+- Los envíos programados se reconcilian mediante `reconcile-scheduled-emails`.
 
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_PUBLISHABLE_KEY`
-- `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
+## 7. Billing
 
-Trigger a new deploy after setting build-time `VITE_` variables. Keep the server-only key scoped to server functions and never expose it as a `VITE_` variable.
+Desde `/billing` se pueden crear cobros manuales, seleccionar cliente/servicio, establecer monto y vencimiento, marcar pagos, guardar enlaces HTTPS y preparar recordatorios.
 
-## 7. Configure Google Drive later
+Esto no emite documentos tributarios. `invoices` continúa siendo solamente un placeholder; no existe integración SII, SimpleAPI ni proveedor de pagos.
 
-Drive scanning additionally needs a Google Cloud service account with the Drive API enabled:
+## 8. Checklist posterior al deploy
 
-1. Create a service account and JSON key.
-2. Store the compact one-line JSON as Netlify's `GOOGLE_SERVICE_ACCOUNT_JSON`.
-3. Share each client folder with the service account email as Viewer.
-4. Save the folder ID in `clients.drive_folder_id`.
+- Iniciar sesión y confirmar que aparece el panel interno.
+- Abrir Configuración y verificar los responsables activos.
+- Preparar un F29 y comprobar destinatario, CC y adjuntos sin enviarlo.
+- Crear un cobro de prueba y revisar que aparezca en `/billing`.
+- Confirmar registros en `activity_log`, `email_logs` y `payment_events`.
+- Verificar `/documents`, `/activity`, `/clients`, `/billing` y `/settings`.
 
-Do not commit the service-account JSON.
-
-## 8. Verification checklist
-
-- An inactive Google user sees the approval-required screen and cannot read client data.
-- An active employee can open `/control` and `/f29/2026/05`.
-- `profiles`, `clients`, and `f29_periods` show RLS enabled.
-
-## Email and billing foundation
-
-1. Apply `supabase/migrations/20260619_add_email_billing_foundation.sql` after the base schema and F22 migration.
-2. Confirm the private `email-attachments` Storage bucket was created and remains non-public.
-3. Configure `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and `FIRM_NAME` in Netlify. The sender domain must be verified in Resend.
-4. Add at least one active billing contact to a client before preparing an F29 email or reminder.
-5. Do not add SII passwords, certificate passwords, API credentials, or raw client credentials to client records, logs, invoice metadata, or environment files.
-- No credential/password columns exist in Supabase.
-- The F29 import count matches the dry-run report.
-- Browser source contains only the publishable key, never the secret/service-role key.
-
-Official references: [Supabase Google login](https://supabase.com/docs/guides/auth/social-login/auth-google), [redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls), and [API keys](https://supabase.com/docs/guides/api/api-keys).
+Nunca almacenar contraseñas SII, claves de certificados digitales ni credenciales crudas.

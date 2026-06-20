@@ -233,7 +233,7 @@ create or replace function public.upsert_f29_billing(
 language plpgsql security definer set search_path = public as $$
 declare v_user uuid := auth.uid(); v_period public.f29_periods; v_item public.billing_items; v_service uuid;
 begin
-  if not public.is_active_employee() then raise exception 'Employee access required'; end if;
+  if not public.can_operate() then raise exception 'Operator access required'; end if;
   select * into v_period from public.f29_periods where id = p_f29_period_id;
   if not found then raise exception 'F29 period not found'; end if;
   select cs.id into v_service from public.client_services cs join public.services s on s.id = cs.service_id
@@ -292,7 +292,7 @@ create or replace function public.save_client_contact(
 language plpgsql security definer set search_path = public as $$
 declare v_contact public.client_contacts;
 begin
-  if not public.is_active_employee() then raise exception 'Employee access required'; end if;
+  if not public.can_operate() then raise exception 'Operator access required'; end if;
   if trim(p_name) = '' or trim(p_email) = '' then raise exception 'Name and email are required'; end if;
   if p_contact_type not in ('general', 'billing', 'legal', 'operations') then raise exception 'Invalid contact type'; end if;
   if p_is_primary then update public.client_contacts set is_primary = false, updated_at = now() where client_id = p_client_id and id is distinct from p_id; end if;
@@ -326,7 +326,7 @@ alter table public.invoices enable row level security;
 do $$ declare t text; begin
   foreach t in array array['client_contacts','email_templates','services','client_services','billing_items','payment_links','payment_events','communication_files','email_logs','invoices'] loop
     execute format('drop policy if exists "employees read %s" on public.%I', t, t);
-    execute format('create policy "employees read %s" on public.%I for select using (public.is_active_employee())', t, t);
+    execute format('create policy "employees read %s" on public.%I for select using (public.can_view())', t, t);
   end loop;
 end; $$;
 
@@ -337,7 +337,7 @@ on conflict (id) do update set public = false, file_size_limit = excluded.file_s
 
 drop policy if exists "employees read email attachments" on storage.objects;
 create policy "employees read email attachments" on storage.objects for select
-using (bucket_id = 'email-attachments' and public.is_active_employee());
+using (bucket_id = 'email-attachments' and public.can_view());
 
 grant execute on function public.upsert_f29_billing(uuid, numeric, date, public.billing_status, text, text, timestamptz) to authenticated;
 grant execute on function public.save_client_contact(uuid, uuid, text, text, text, boolean, boolean, boolean) to authenticated;

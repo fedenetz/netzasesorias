@@ -176,6 +176,18 @@ create or replace function public.is_active_employee()
 returns boolean language sql stable security definer set search_path = public
 as $$ select exists(select 1 from public.profiles where id = auth.uid() and is_active) $$;
 
+create or replace function public.can_view()
+returns boolean language sql stable security definer set search_path = public
+as $$ select public.is_active_employee() $$;
+
+create or replace function public.can_operate()
+returns boolean language sql stable security definer set search_path = public
+as $$ select exists(select 1 from public.profiles where id = auth.uid() and is_active and role in ('admin', 'accountant')) $$;
+
+create or replace function public.is_admin()
+returns boolean language sql stable security definer set search_path = public
+as $$ select exists(select 1 from public.profiles where id = auth.uid() and is_active and role = 'admin') $$;
+
 alter table public.profiles enable row level security;
 alter table public.clients enable row level security;
 alter table public.periods enable row level security;
@@ -186,18 +198,18 @@ alter table public.documents enable row level security;
 alter table public.observations enable row level security;
 alter table public.activity_log enable row level security;
 
-create policy "employees read profiles" on public.profiles for select using (public.is_active_employee());
+create policy "employees read profiles" on public.profiles for select using (public.can_view());
 create policy "users read own profile" on public.profiles for select using (id = auth.uid());
-create policy "employees read clients" on public.clients for select using (public.is_active_employee());
-create policy "employees write clients" on public.clients for all using (public.is_active_employee()) with check (public.is_active_employee());
-create policy "employees manage periods" on public.periods for all using (public.is_active_employee()) with check (public.is_active_employee());
-create policy "employees manage fields" on public.period_status_fields for all using (public.is_active_employee()) with check (public.is_active_employee());
-create policy "employees manage f29 periods" on public.f29_periods for all using (public.is_active_employee()) with check (public.is_active_employee());
-create policy "employees manage f22 periods" on public.f22_periods for all using (public.is_active_employee()) with check (public.is_active_employee());
-create policy "employees manage documents" on public.documents for all using (public.is_active_employee()) with check (public.is_active_employee());
-create policy "employees manage observations" on public.observations for all using (public.is_active_employee()) with check (public.is_active_employee());
-create policy "employees read activity" on public.activity_log for select using (public.is_active_employee());
-create policy "employees create activity" on public.activity_log for insert with check (public.is_active_employee() and (actor_id is null or actor_id = auth.uid()));
+create policy "employees read clients" on public.clients for select using (public.can_view());
+create policy "employees write clients" on public.clients for all using (public.can_operate()) with check (public.can_operate());
+create policy "employees manage periods" on public.periods for all using (public.can_operate()) with check (public.can_operate());
+create policy "employees manage fields" on public.period_status_fields for all using (public.can_operate()) with check (public.can_operate());
+create policy "employees manage f29 periods" on public.f29_periods for all using (public.can_operate()) with check (public.can_operate());
+create policy "employees manage f22 periods" on public.f22_periods for all using (public.can_operate()) with check (public.can_operate());
+create policy "employees manage documents" on public.documents for all using (public.can_operate()) with check (public.can_operate());
+create policy "employees manage observations" on public.observations for all using (public.can_operate()) with check (public.can_operate());
+create policy "employees read activity" on public.activity_log for select using (public.can_view());
+create policy "employees create activity" on public.activity_log for insert with check (public.can_operate() and (actor_id is null or actor_id = auth.uid()));
 
 -- New Google users remain inactive until an admin explicitly allows them.
 create or replace function public.handle_new_user() returns trigger language plpgsql security definer set search_path = public as $$

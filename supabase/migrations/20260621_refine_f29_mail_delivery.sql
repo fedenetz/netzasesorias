@@ -28,7 +28,7 @@ on conflict (holiday_date) do update set name = excluded.name;
 
 alter table public.chile_holidays enable row level security;
 drop policy if exists "employees read chile holidays" on public.chile_holidays;
-create policy "employees read chile holidays" on public.chile_holidays for select using (public.is_active_employee());
+create policy "employees read chile holidays" on public.chile_holidays for select using (public.can_view());
 
 create or replace function public.next_chile_business_date(p_date date)
 returns date language plpgsql stable security definer set search_path = public as $$

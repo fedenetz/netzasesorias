@@ -46,7 +46,7 @@ alter table public.f22_periods enable row level security;
 
 do $$ begin
   if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'f22_periods' and policyname = 'employees manage f22 periods') then
-    create policy "employees manage f22 periods" on public.f22_periods for all using (public.is_active_employee()) with check (public.is_active_employee());
+    create policy "employees manage f22 periods" on public.f22_periods for all using (public.can_operate()) with check (public.can_operate());
   end if;
 end; $$;
 

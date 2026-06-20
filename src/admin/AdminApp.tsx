@@ -20,8 +20,9 @@ import { effectiveBillingStatus } from './billing-utils';
 import { F29OperationsDashboard } from './f29-operations-ui';
 import { AdminSettings } from './AdminSettings';
 import { ActivityWorkspace, DocumentsWorkspace } from './OperationsScreens';
+import { HelpSystem } from './HelpSystem';
 
-type Screen = 'dashboard' | 'clients' | 'f29' | 'f22' | 'billing' | 'documents' | 'activity' | 'settings' | 'client';
+export type Screen = 'dashboard' | 'clients' | 'f29' | 'f22' | 'billing' | 'documents' | 'activity' | 'settings' | 'client';
 
 const nav = [
   { id: 'dashboard', label: 'Resumen', icon: LayoutDashboard },
@@ -65,6 +66,7 @@ export function AdminApp({ user, preview, role }: { user: User | null; preview: 
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => window.localStorage.getItem('netz-control-theme') === 'light' ? 'light' : 'dark');
   const [density, setDensity] = useState<'compact' | 'comfortable'>(() => window.localStorage.getItem('netz-control-density') === 'comfortable' ? 'comfortable' : 'compact');
+  const [helpOpen, setHelpOpen] = useState(false);
 
   useEffect(() => {
     document.documentElement.dataset.controlTheme = theme;
@@ -132,7 +134,7 @@ export function AdminApp({ user, preview, role }: { user: User | null; preview: 
   const searchMatches = globalSearch.trim() ? rows.filter(row => `${row.name} ${row.rut} ${row.accountingCode ?? ''}`.toLowerCase().includes(globalSearch.toLowerCase())).slice(0, 6) : [];
   const signOut = async () => { setLogoutOpen(false); await supabase?.auth.signOut(); };
 
-  if (role === 'viewer') return <ViewerWorkspace rows={rows} loading={dataLoading} error={dataError} displayName={displayName} signOut={signOut} />;
+  if (role === 'viewer') return <ViewerWorkspace rows={rows} loading={dataLoading} error={dataError} displayName={displayName} signOut={signOut} helpOpen={helpOpen} setHelpOpen={setHelpOpen} />;
 
   return (
     <div className="control-shell">
@@ -157,6 +159,7 @@ export function AdminApp({ user, preview, role }: { user: User | null; preview: 
           <div className="topbar-search global-search"><Search size={17} /><input value={globalSearch} onChange={event => setGlobalSearch(event.target.value)} placeholder="Buscar cliente, RUT o Conta…" />{searchMatches.length > 0 && <div className="global-search-results">{searchMatches.map(row => <button key={row.id} onClick={() => { setGlobalSearch(''); go('client', row); }}><strong>{row.name}</strong><small>{row.rut} · Conta {row.accountingCode ?? '—'}</small></button>)}</div>}</div>
           <div className="topbar-actions">
             {preview && <span className="preview-badge">Vista local</span>}
+            <HelpSystem page={screen} role={role} open={helpOpen} onOpen={() => setHelpOpen(true)} onClose={() => setHelpOpen(false)} />
             <button className="icon-button theme-toggle" aria-label={theme === 'dark' ? 'Usar tema claro' : 'Usar tema oscuro'} title={theme === 'dark' ? 'Tema claro' : 'Tema oscuro'} onClick={() => setTheme(value => value === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? <Sun size={17}/> : <Moon size={17}/>}</button>
             <button className="icon-button density-toggle" aria-label={density === 'compact' ? 'Usar densidad cómoda' : 'Usar densidad compacta'} title={density === 'compact' ? 'Densidad cómoda' : 'Densidad compacta'} onClick={() => setDensity(value => value === 'compact' ? 'comfortable' : 'compact')}><Gauge size={17}/></button>
             <button className="icon-button" aria-label="Ver actividad" onClick={() => go('activity')}><Bell size={18} /></button>
@@ -181,9 +184,9 @@ export function AdminApp({ user, preview, role }: { user: User | null; preview: 
   );
 }
 
-function ViewerWorkspace({ rows, loading, error, displayName, signOut }: { rows: ClientRow[]; loading: boolean; error: string; displayName: string; signOut: () => Promise<void> }) {
+function ViewerWorkspace({ rows, loading, error, displayName, signOut, helpOpen, setHelpOpen }: { rows: ClientRow[]; loading: boolean; error: string; displayName: string; signOut: () => Promise<void>; helpOpen: boolean; setHelpOpen: (open: boolean) => void }) {
   const money = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
-  return <div className="control-shell viewer-workspace"><main className="control-main"><header className="control-topbar"><div><strong>Netz Control</strong><small className="viewer-label"><LockKeyhole size={12}/> Solo lectura</small></div><button className="button-ghost" onClick={() => void signOut()}><LogOut size={14}/> Cerrar sesión</button></header><div className="control-content wide-content"><div className="control-page-head"><div><span>Acceso de consulta</span><h1>Operación contable</h1><p>{displayName}, puedes consultar el estado operativo. Las ediciones, envíos, cobros, contactos, adjuntos y acciones de Drive están deshabilitados para tu rol.</p></div><div className="read-only-banner"><LockKeyhole size={15}/><span><strong>Solo lectura</strong><small>No hay acciones de edición disponibles</small></span></div></div>{loading && <div className="control-data-state">Cargando datos de Supabase…</div>}{error && <div className="control-data-state is-error"><AlertTriangle size={18}/>{error}</div>}{!loading && !error && <section className="operations-card"><div className="table-scroll"><table className="ops-table viewer-table"><thead><tr><th>Cliente</th><th>RUT</th><th>Responsable</th><th>F29</th><th>Monto</th><th>Fecha</th><th>Email</th><th>Pago</th></tr></thead><tbody>{rows.map(row => <tr key={row.id}><td data-label="Cliente"><strong>{row.name}</strong></td><td data-label="RUT">{row.rut}</td><td data-label="Responsable">{row.accountant || '—'}</td><td data-label="F29"><Pill value={row.statusLabel}>{row.statusLabel || 'Sin estado'}</Pill></td><td data-label="Monto">{row.amount == null ? '—' : money.format(row.amount)}</td><td data-label="Fecha">{row.filedDate || '—'}</td><td data-label="Email"><EmailStatusBadge status={row.emailStatus}/></td><td data-label="Pago">{row.taxPaid ? 'Pagado' : 'Pendiente'}</td></tr>)}</tbody></table>{!rows.length && <div className="empty-table">No hay clientes visibles.</div>}</div></section>}</div></main></div>;
+  return <div className="control-shell viewer-workspace"><main className="control-main"><header className="control-topbar"><div><strong>Netz Control</strong><small className="viewer-label"><LockKeyhole size={12}/> Solo lectura</small></div><div className="topbar-actions"><HelpSystem page="viewer" role="viewer" open={helpOpen} onOpen={() => setHelpOpen(true)} onClose={() => setHelpOpen(false)}/><button className="button-ghost" onClick={() => void signOut()}><LogOut size={14}/> Cerrar sesión</button></div></header><div className="control-content wide-content"><div className="control-page-head"><div><span>Acceso de consulta</span><h1>Operación contable</h1><p>{displayName}, puedes consultar el estado operativo. Las ediciones, envíos, cobros, contactos, adjuntos y acciones de Drive están deshabilitados para tu rol.</p></div><div className="read-only-banner"><LockKeyhole size={15}/><span><strong>Solo lectura</strong><small>No hay acciones de edición disponibles</small></span></div></div>{loading && <div className="control-data-state">Cargando datos de Supabase…</div>}{error && <div className="control-data-state is-error"><AlertTriangle size={18}/>{error}</div>}{!loading && !error && <section className="operations-card"><div className="table-scroll"><table className="ops-table viewer-table"><thead><tr><th>Cliente</th><th>RUT</th><th>Responsable</th><th>F29</th><th>Monto</th><th>Fecha</th><th>Email</th><th>Pago</th></tr></thead><tbody>{rows.map(row => <tr key={row.id}><td data-label="Cliente"><strong>{row.name}</strong></td><td data-label="RUT">{row.rut}</td><td data-label="Responsable">{row.accountant || '—'}</td><td data-label="F29"><Pill value={row.statusLabel}>{row.statusLabel || 'Sin estado'}</Pill></td><td data-label="Monto">{row.amount == null ? '—' : money.format(row.amount)}</td><td data-label="Fecha">{row.filedDate || '—'}</td><td data-label="Email"><EmailStatusBadge status={row.emailStatus}/></td><td data-label="Pago">{row.taxPaid ? 'Pagado' : 'Pendiente'}</td></tr>)}</tbody></table>{!rows.length && <div className="empty-table">No hay clientes visibles.</div>}</div></section>}</div></main></div>;
 }
 
 function PageHeader({ eyebrow, title, description, actions }: { eyebrow: string; title: string; description: string; actions?: React.ReactNode }) {

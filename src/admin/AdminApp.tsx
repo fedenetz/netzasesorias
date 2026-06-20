@@ -123,6 +123,8 @@ export function AdminApp({ user, preview, role }: { user: User | null; preview: 
   const searchMatches = globalSearch.trim() ? rows.filter(row => `${row.name} ${row.rut} ${row.accountingCode ?? ''}`.toLowerCase().includes(globalSearch.toLowerCase())).slice(0, 6) : [];
   const signOut = async () => { setLogoutOpen(false); await supabase?.auth.signOut(); };
 
+  if (role === 'viewer') return <ViewerWorkspace rows={rows} loading={dataLoading} error={dataError} displayName={displayName} signOut={signOut} />;
+
   return (
     <div className="control-shell">
       <aside className={`control-sidebar ${sidebarOpen ? 'is-open' : ''}`}>
@@ -165,6 +167,11 @@ export function AdminApp({ user, preview, role }: { user: User | null; preview: 
       </main>
     </div>
   );
+}
+
+function ViewerWorkspace({ rows, loading, error, displayName, signOut }: { rows: ClientRow[]; loading: boolean; error: string; displayName: string; signOut: () => Promise<void> }) {
+  const money = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
+  return <div className="control-shell viewer-workspace"><main className="control-main"><header className="control-topbar"><div><strong>Netz Control</strong><small className="viewer-label">Vista de solo lectura</small></div><button className="button-ghost" onClick={() => void signOut()}><LogOut size={14}/> Cerrar sesión</button></header><div className="control-content wide-content"><div className="control-page-head"><div><span>Acceso viewer</span><h1>Operación contable</h1><p>{displayName}, puedes consultar el estado operativo. Las ediciones, envíos, cobros, contactos, adjuntos y acciones de Drive están deshabilitados para tu rol.</p></div></div>{loading && <div className="control-data-state">Cargando datos de Supabase…</div>}{error && <div className="control-data-state is-error"><AlertTriangle size={18}/>{error}</div>}{!loading && !error && <section className="operations-card"><div className="table-scroll"><table className="ops-table"><thead><tr><th>Cliente</th><th>RUT</th><th>Responsable</th><th>F29</th><th>Monto</th><th>Fecha</th><th>Email</th><th>Pago</th></tr></thead><tbody>{rows.map(row => <tr key={row.id}><td><strong>{row.name}</strong></td><td>{row.rut}</td><td>{row.accountant || '—'}</td><td><Pill value={row.statusLabel}>{row.statusLabel || 'Sin estado'}</Pill></td><td>{row.amount == null ? '—' : money.format(row.amount)}</td><td>{row.filedDate || '—'}</td><td><EmailStatusBadge status={row.emailStatus}/></td><td>{row.taxPaid ? 'Pagado' : 'Pendiente'}</td></tr>)}</tbody></table>{!rows.length && <div className="empty-table">No hay clientes visibles.</div>}</div></section>}</div></main></div>;
 }
 
 function PageHeader({ eyebrow, title, description, actions }: { eyebrow: string; title: string; description: string; actions?: React.ReactNode }) {

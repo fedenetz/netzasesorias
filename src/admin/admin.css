@@ -169,3 +169,5 @@
   .billing-table td:nth-child(1)::before{content:'Cliente'}.billing-table td:nth-child(2)::before{content:'RUT'}.billing-table td:nth-child(3)::before{content:'Servicio'}.billing-table td:nth-child(4)::before{content:'Monto'}.billing-table td:nth-child(5)::before{content:'Vence'}.billing-table td:nth-child(6)::before{content:'Estado'}.billing-table td:nth-child(7)::before{content:'Recordatorio'}.billing-table td:nth-child(8)::before{content:'Enlace'}.billing-table td:nth-child(9)::before{content:'Acciones'}
 }
 .client-plan-editor{display:flex;align-items:center;gap:8px;margin:0 16px 10px;padding-top:12px;border-top:1px solid #eff0ef}.client-plan-editor select{min-width:0;flex:1;padding:7px;border:1px solid #dfe2df;border-radius:5px}.client-plan-editor label{display:flex;align-items:center;gap:5px;font-size:10px}.client-plan-editor button{padding:7px 9px;color:#fff;background:#526479;border:0;border-radius:5px;font-size:10px;font-weight:800}.plan-message{display:block;margin:0 16px 9px;color:#536d56}
+.viewer-label { display: block; color: #64748b; font-size: 12px; margin-top: 2px; }
+.viewer-workspace .control-main { margin-left: 0; width: 100%; }

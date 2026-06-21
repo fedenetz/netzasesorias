@@ -1,7 +1,7 @@
 import { F29_STATUS_LABELS, type ClientRow, type F29StatusCode } from './types';
 
 const make = (id: string, rut: string, name: string, accountant: string, statusCode: F29StatusCode, amount: number | null, filedDate: string | null, dueDay: number, observation = '', documents = 0): ClientRow => ({
-  id, periodId: `preview-${id}`, rut, name, accountant, accountantEmail: `${accountant.toLowerCase().replace(/\s+/g, '.')}@netzasesorias.cl`, initials: accountant.split(' ').map(part => part[0]).join('').slice(0, 2), f29Enabled: true, f22Enabled: true,
+  id, periodId: `preview-${id}`, rut, name, accountant, accountantEmail: `${accountant.toLowerCase().replace(/\s+/g, '.')}@netzasesorias.cl`, initials: accountant.split(' ').map(part => part[0]).join('').slice(0, 2), assignedUserId: accountant === 'Camila Soto' ? 'preview-accountant' : `preview-${accountant.toLowerCase().replace(/\s+/g, '-')}`, f29Enabled: true, f22Enabled: true,
   year: 2026, month: 5, statusCode, statusLabel: F29_STATUS_LABELS[statusCode], amount, filedDate,
   previousAmount: amount === null ? null : Math.round(amount * (id === '4' ? 1.18 : .92)),
   dueDay, observation, documents, updated: id === '1' ? 'Hace 12 min' : id === '2' ? 'Hace 24 min' : 'Ayer',

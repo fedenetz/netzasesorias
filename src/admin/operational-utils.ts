@@ -3,6 +3,22 @@ export type OperationalRole = 'admin' | 'accountant' | 'viewer';
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
+export function normalizeOperationalName(value: string | null | undefined) {
+  return normalize(value ?? '').replace(/\s+/g, ' ').trim();
+}
+
+export function resolveOperationalAssigneeId(
+  responsibleUserId: string | null | undefined,
+  clientAssignedUserId: string | null | undefined,
+  responsibleName: string | null | undefined,
+  profiles: Array<{ id: string; fullName: string | null | undefined }>,
+) {
+  if (responsibleUserId) return responsibleUserId;
+  const expectedName = normalizeOperationalName(responsibleName);
+  const profileId = expectedName ? profiles.find(profile => normalizeOperationalName(profile.fullName) === expectedName)?.id : null;
+  return profileId ?? clientAssignedUserId ?? null;
+}
+
 export type DocumentCandidate = { name: string; path?: string; mimeType?: string | null; modifiedAt?: string | null; isFolder?: boolean };
 
 export function documentMatchesPeriod(document: DocumentCandidate, year: number, month: number) {
@@ -55,4 +71,25 @@ export function generateHistoryMonths<T extends HistoryPeriod>(history: T[], now
 
 export function canEditClient(role: OperationalRole, userId: string | null | undefined, assignedUserId: string | null | undefined) {
   return role === 'admin' || (role === 'accountant' && Boolean(userId) && userId === assignedUserId);
+}
+
+export type F29WorkflowFilter = 'active' | 'pending' | 'loaded' | 'informed' | 'paid' | 'missing' | 'issues' | 'postponed' | 'no_movement' | 'all';
+type F29WorkflowRow = { periodId?: string; statusCode: string | null; taxPaid?: boolean };
+
+export function matchesF29Workflow(row: F29WorkflowRow, filter: F29WorkflowFilter) {
+  if (filter === 'all') return true;
+  if (filter === 'active') return row.statusCode !== 'F';
+  if (filter === 'pending') return row.statusCode === 'E';
+  if (filter === 'loaded') return row.statusCode === 'A';
+  if (filter === 'informed') return row.statusCode === 'C';
+  if (filter === 'paid') return row.statusCode === 'D' || Boolean(row.taxPaid);
+  if (filter === 'missing') return !row.periodId || row.statusCode === null;
+  if (filter === 'issues') return row.statusCode === 'B' || row.statusCode === 'H';
+  if (filter === 'postponed') return row.statusCode === 'G';
+  return row.statusCode === 'F';
+}
+
+export function f29WorkflowPriority(row: F29WorkflowRow) {
+  if (!row.periodId || row.statusCode === null) return 0;
+  return ({ B: 1, H: 1, E: 2, A: 3, C: 4, D: 5, G: 6, F: 7 } as Record<string, number>)[row.statusCode] ?? 8;
 }

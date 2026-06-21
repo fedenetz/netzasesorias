@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { canEditClient, filterRecentF29Workbooks, generateHistoryMonths, inferRelevantDocumentType, isF29Workbook } from '../src/admin/operational-utils';
+import { canEditClient, f29WorkflowPriority, filterRecentF29Workbooks, generateHistoryMonths, inferRelevantDocumentType, isF29Workbook, matchesF29Workflow, resolveOperationalAssigneeId } from '../src/admin/operational-utils';
 
 test('F29 suggestions require a matching month, accounting name and xlsx extension', () => {
   assert.equal(isF29Workbook({ name: 'F29 mayo 2026.xlsx', path: 'Impuestos/2026/05 Mayo' }, 2026, 5), true);
@@ -35,4 +35,26 @@ test('accountants can edit only their assigned clients', () => {
   assert.equal(canEditClient('accountant', 'u1', 'u1'), true);
   assert.equal(canEditClient('accountant', 'u1', 'u2'), false);
   assert.equal(canEditClient('viewer', 'u1', 'u1'), false);
+});
+
+test('F29 operational names resolve to the linked accountant profile', () => {
+  const profiles = [{ id: 'gabriela-id', fullName: 'GABRIELA' }, { id: 'paola-id', fullName: 'Paola Muñoz' }];
+  assert.equal(resolveOperationalAssigneeId(null, null, '  gabriela ', profiles), 'gabriela-id');
+  assert.equal(resolveOperationalAssigneeId(null, null, 'PAOLA MUNOZ', profiles), 'paola-id');
+  assert.equal(resolveOperationalAssigneeId('period-id', 'client-id', 'GABRIELA', profiles), 'period-id');
+  assert.equal(resolveOperationalAssigneeId(null, 'client-id', 'GABRIELA', profiles), 'gabriela-id');
+  assert.equal(resolveOperationalAssigneeId(null, 'client-id', null, profiles), 'client-id');
+  assert.equal(resolveOperationalAssigneeId(null, null, 'OTRA PERSONA', profiles), null);
+});
+
+test('F29 workflow hides no-movement rows and counts pending as its own stage', () => {
+  const pending = { periodId: 'p1', statusCode: 'E', taxPaid: false };
+  const noMovement = { periodId: 'p2', statusCode: 'F', taxPaid: false };
+  const missing = { periodId: 'p3', statusCode: null, taxPaid: false };
+  assert.equal(matchesF29Workflow(pending, 'active'), true);
+  assert.equal(matchesF29Workflow(noMovement, 'active'), false);
+  assert.equal(matchesF29Workflow(noMovement, 'no_movement'), true);
+  assert.equal(matchesF29Workflow(missing, 'pending'), false);
+  assert.equal(matchesF29Workflow(pending, 'pending'), true);
+  assert.ok(f29WorkflowPriority(missing) < f29WorkflowPriority(pending));
 });

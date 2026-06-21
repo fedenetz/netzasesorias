@@ -12,6 +12,9 @@ En un proyecto nuevo, ejecutar primero `supabase/schema.sql`. Después aplicar, 
 4. `20260621_refine_f29_mail_delivery.sql`
 5. `20260622_admin_billing_navigation.sql`
 6. `20260623_operational_usability.sql`
+7. `20260624_security_production_baseline.sql`
+8. `20260625_transversal_quality.sql`
+9. `20260626_accountant_f29_assignment.sql`
 
 No volver a pegar migraciones parcialmente en SQL Editor. Ejecutar siempre el archivo completo.
 

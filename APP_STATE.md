@@ -1,6 +1,6 @@
 # Estado actual de Netz Control
 
-Fecha de corte: 20 de junio de 2026.
+Fecha de corte: 21 de junio de 2026.
 
 ## Estado general
 
@@ -35,6 +35,7 @@ La aplicación evolucionó desde un control interno F29/F22 hacia una base de ge
 - Fecha del primer email y fecha límite electrónica con fines de semana/feriados.
 - Estado del Excel por cliente/período, recarga de la carpeta mensual y subida directa `.xls/.xlsx/.xlsm`, con estado por fila y auditoría.
 - Historial con próximos dos meses en prioridad visual baja, sin tratarlos como alertas.
+- Las cuentas `accountant` ven y operan solamente los F29 vinculados a su identidad. La asignación resuelve primero `responsible_user_id`, luego el nombre operativo de `responsible_name` contra el perfil/safelist y finalmente `clients.assigned_user_id`.
 
 ### Email F29
 
@@ -69,6 +70,7 @@ La aplicación evolucionó desde un control interno F29/F22 hacia una base de ge
 - Tablas compactas, mejor contraste, truncado con detalle y tarjetas apiladas en móvil.
 - Filtros compactos para búsqueda, responsable, F29, billing y documentos.
 - Manifest de `Netz Control` y service worker instalable. Solo conserva manifest/icono; navegación, funciones y datos autenticados son network-only.
+- El Resumen mantiene superficies, anillo de progreso, leyendas, bordes y textos secundarios con contraste consistente en dark mode.
 
 ### Navegación
 
@@ -102,10 +104,13 @@ La aplicación evolucionó desde un control interno F29/F22 hacia una base de ge
 ## Migraciones nuevas
 
 - `20260623_operational_usability.sql`: metadata administrativa, fecha de escaneo Drive, procedencia/tipos documentales y metadata de plan/suscripción.
+- `20260624_security_production_baseline.sql`: baseline de seguridad, permisos y diagnóstico de producción.
+- `20260625_transversal_quality.sql`: permisos de mutación limitados al cliente asignado.
+- `20260626_accountant_f29_assignment.sql`: alinea RLS F29 con el nombre operativo vinculado al perfil/safelist del contador.
 
-## Verificación más reciente (20 de junio de 2026)
+## Verificación más reciente (21 de junio de 2026)
 
 - `npx tsc --noEmit` sin errores (ejecutado como `npx.cmd` en Windows).
 - Build Vite de producción exitoso; persiste la advertencia no bloqueante del chunk superior a 500 kB.
-- 14 pruebas automatizadas exitosas, incluidas estructura F29, CID de comprobante y enlace de pago en la plantilla compartida.
-- Verificación visual del compositor F29 en 1280×720 y 390×844: acciones visibles, área desplazable sin solapamiento y HTML final legible.
+- 26 pruebas automatizadas exitosas, incluida la resolución de responsables F29 por nombre operativo tolerante a mayúsculas y tildes.
+- Verificación visual del Resumen dark mode y de F29 con rol `accountant` en 1280×720: contraste legible y solamente filas asignadas al contador.

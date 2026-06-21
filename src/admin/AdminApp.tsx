@@ -112,7 +112,7 @@ export function AdminApp({ user, preview, role }: { user: User | null; preview: 
   const updateRow = async (id: string, patch: Partial<ClientRow>) => {
     const row = rows.find(item => item.id === id);
     if (!row) return;
-    if (!canEditClient(role, user?.id, row.assignedUserId)) throw new Error('No tienes permiso para editar el F29 de este cliente.');
+    if (!canEditClient(role, currentUserId, row.assignedUserId)) throw new Error('No tienes permiso para editar el F29 de este cliente.');
     const effectivePatch: Partial<ClientRow> = patch.taxPaid === true ? { ...patch, statusCode: 'D', statusLabel: F29_STATUS_LABELS.D } : patch.taxPaid === false && row.statusCode === 'D' ? { ...patch, statusCode: row.emailStatus === 'sent' ? 'C' : 'A', statusLabel: row.emailStatus === 'sent' ? F29_STATUS_LABELS.C : F29_STATUS_LABELS.A } : patch;
     if (preview) {
       setRows(current => current.map(item => item.id === id ? { ...item, ...effectivePatch, updated: 'Ahora' } : item));
@@ -132,6 +132,7 @@ export function AdminApp({ user, preview, role }: { user: User | null; preview: 
     }
   };
   const displayName = String(user?.user_metadata?.full_name ?? 'Camila Soto');
+  const currentUserId = user?.id ?? (preview && role === 'accountant' ? 'preview-accountant' : undefined);
   const [globalSearch, setGlobalSearch] = useState('');
   const searchMatches = globalSearch.trim() ? rows.filter(row => `${row.name} ${row.rut} ${row.accountingCode ?? ''}`.toLowerCase().includes(globalSearch.toLowerCase())).slice(0, 6) : [];
   const signOut = async () => { setLogoutOpen(false); await supabase?.auth.signOut(); };
@@ -171,14 +172,14 @@ export function AdminApp({ user, preview, role }: { user: User | null; preview: 
         {dataLoading && <div className="control-data-state">Cargando datos de Supabase…</div>}
         {dataError && <div className="control-data-state is-error"><AlertTriangle size={18} />{dataError}</div>}
         {!dataLoading && !dataError && screen === 'dashboard' && <Dashboard rows={rows} go={go} year={activeYear} month={activeMonth} />}
-        {!dataLoading && !dataError && screen === 'f29' && <F29OperationsDashboard rows={rows.filter(row => row.f29Enabled && (role === 'admin' || row.assignedUserId === user?.id))} updateRow={updateRow} openClient={row => go('client', row)} year={activeYear} month={activeMonth} navigatePeriod={navigatePeriod} saveStates={saveStates} reload={reloadRows} isAdmin={role === 'admin'} />}
+        {!dataLoading && !dataError && screen === 'f29' && <F29OperationsDashboard rows={rows.filter(row => row.f29Enabled && (role === 'admin' || row.assignedUserId === currentUserId))} updateRow={updateRow} openClient={row => go('client', row)} year={activeYear} month={activeMonth} navigatePeriod={navigatePeriod} saveStates={saveStates} reload={reloadRows} isAdmin={role === 'admin'} />}
         {!dataLoading && !dataError && screen === 'f22' && <F22DashboardLive initialTaxYear={Number(initialPath.match(/\/f22\/(\d{4})/)?.[1] ?? 2026)} openClient={clientId => { const client = rows.find(row => row.id === clientId); if (client) go('client', client); }} />}
-        {!dataLoading && !dataError && screen === 'clients' && <ClientsIndexV3 rows={rows} go={go} reload={reloadRows} role={role} userId={user?.id} />}
+        {!dataLoading && !dataError && screen === 'clients' && <ClientsIndexV3 rows={rows} go={go} reload={reloadRows} role={role} userId={currentUserId} />}
         {!dataLoading && !dataError && screen === 'billing' && <BillingDashboard openClient={clientId => { const client = rows.find(row => row.id === clientId); if (client) go('client', client); }} />}
         {!dataLoading && !dataError && screen === 'documents' && <DocumentsWorkspace />}
         {!dataLoading && !dataError && screen === 'activity' && <ActivityWorkspace />}
         {!dataLoading && !dataError && screen === 'settings' && role === 'admin' && <AdminSettings preview={preview} />}
-        {!dataLoading && !dataError && screen === 'client' && selected && <ClientProfileV2 client={selected} year={activeYear} month={activeMonth} reload={reloadRows} role={role} userId={user?.id} />}
+        {!dataLoading && !dataError && screen === 'client' && selected && <ClientProfileV2 client={selected} year={activeYear} month={activeMonth} reload={reloadRows} role={role} userId={currentUserId} />}
         <nav className="mobile-bottom-nav" aria-label="Navegación principal"><button className={screen==='dashboard'?'active':''} onClick={()=>go('dashboard')}><LayoutDashboard size={18}/><span>Inicio</span></button><button className={screen==='clients'?'active':''} onClick={()=>go('clients')}><Users size={18}/><span>Clientes</span></button><button className={screen==='f29'?'active':''} onClick={()=>go('f29')}><CalendarDays size={18}/><span>F29</span></button><button className={screen==='billing'?'active':''} onClick={()=>go('billing')}><CircleDollarSign size={18}/><span>Cobranza</span></button><button onClick={()=>setSidebarOpen(true)}><MoreHorizontal size={18}/><span>Más</span></button></nav>
         {logoutOpen && <div className="modal-backdrop"><section className="control-modal logout-confirm"><header><div><span>Sesión segura</span><h2>¿Cerrar sesión?</h2></div><button aria-label="Cancelar cierre" onClick={() => setLogoutOpen(false)}><X size={18}/></button></header><p>Saldrás del panel interno de Netz. Los cambios ya guardados permanecerán registrados.</p><footer><button className="button-ghost" onClick={() => setLogoutOpen(false)}>Cancelar</button><button className="button-danger" onClick={() => void signOut()}><LogOut size={14}/> Cerrar sesión</button></footer></section></div>}
       </main>
@@ -217,7 +218,7 @@ function Dashboard({ rows, go, year, month }: { rows: ClientRow[]; go: (s: Scree
     </div>
     <div className="dashboard-grid">
       <section className="control-card span-two"><CardHead title={`F29 · ${MONTH_NAMES[month - 1]} ${year}`} subtitle="Período mensual seleccionado" action={<button onClick={() => go('f29')}>Ver dashboard <ArrowRight size={14} /></button>} />
-        <div className="progress-overview"><div className="progress-ring" style={{ background: `radial-gradient(closest-side,#fff 75%,transparent 76%),conic-gradient(var(--green) ${completion}%,#edf0ed 0)` }}><strong>{completion}%</strong><span>completado</span></div><div className="progress-legend"><p><i className="legend-ready" />Pagada / Enviada <strong>{completed}</strong></p><p><i className="legend-progress" />Cargada / Informada <strong>{loaded + informed}</strong></p><p><i className="legend-pending" />Pendiente / Sin estado <strong>{pending}</strong></p><p><i className="legend-blocked" />Revisión requerida <strong>{blocked}</strong></p></div></div>
+        <div className="progress-overview"><div className="progress-ring" style={{ '--completion': `${completion}%`, background: `radial-gradient(closest-side,#fff 75%,transparent 76%),conic-gradient(var(--green) ${completion}%,#edf0ed 0)` } as React.CSSProperties}><strong>{completion}%</strong><span>completado</span></div><div className="progress-legend"><p><i className="legend-ready" />Pagada / Enviada <strong>{completed}</strong></p><p><i className="legend-progress" />Cargada / Informada <strong>{loaded + informed}</strong></p><p><i className="legend-pending" />Pendiente / Sin estado <strong>{pending}</strong></p><p><i className="legend-blocked" />Revisión requerida <strong>{blocked}</strong></p></div></div>
       </section>
       <F22OverviewCard taxYear={2026} go={go} />
       <section className="control-card span-two"><CardHead title="Atención requerida" subtitle="Clientes con bloqueos o atrasos" action={<button>Ver todos</button>} />

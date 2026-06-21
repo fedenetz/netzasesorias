@@ -70,6 +70,9 @@ La aplicación evolucionó desde un control interno F29/F22 hacia una base de ge
 
 - Tablas compactas, mejor contraste, truncado con detalle y tarjetas apiladas en móvil.
 - Filtros compactos para búsqueda, responsable, F29, billing y documentos.
+- Filtros categóricos multiselección con casillas en Clientes, F29 y F22; las opciones de una categoría se combinan entre sí y las categorías se cruzan.
+- Clientes, F29 y F22 ordenan por RUT inicialmente y permiten alternar ascendente/descendente desde cada encabezado de columna.
+- El filtro `Alertas` agrupa observaciones y estados problemáticos: error, vencido/pago pendiente, postergado y revisión requerida cuando corresponda.
 - Manifest de `Netz Control` y service worker instalable. Solo conserva manifest/icono; navegación, funciones y datos autenticados son network-only.
 - El Resumen mantiene superficies, anillo de progreso, leyendas, bordes y textos secundarios con contraste consistente en dark mode.
 - El control de densidad de la barra superior abre un selector explícito Compacta/Cómoda y ajusta tablas y tarjetas móviles.

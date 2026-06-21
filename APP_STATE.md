@@ -36,6 +36,7 @@ La aplicación evolucionó desde un control interno F29/F22 hacia una base de ge
 - Estado del Excel por cliente/período, recarga de la carpeta mensual y subida directa `.xls/.xlsx/.xlsm`, con estado por fila y auditoría.
 - Historial con próximos dos meses en prioridad visual baja, sin tratarlos como alertas.
 - Las cuentas `accountant` ven y operan solamente los F29 vinculados a su identidad. La asignación resuelve primero `responsible_user_id`, luego el nombre operativo de `responsible_name` contra el perfil/safelist y finalmente `clients.assigned_user_id`.
+- El flujo mensual F29 separa `Pendiente`, `Cargada`, `Informada`, `Pagada` y `Sin estado`; el contador debe resolver los períodos sin estado. `Sin movimiento` queda oculto por defecto al abrir o cambiar de mes y conserva un filtro explícito.
 
 ### Email F29
 
@@ -71,6 +72,7 @@ La aplicación evolucionó desde un control interno F29/F22 hacia una base de ge
 - Filtros compactos para búsqueda, responsable, F29, billing y documentos.
 - Manifest de `Netz Control` y service worker instalable. Solo conserva manifest/icono; navegación, funciones y datos autenticados son network-only.
 - El Resumen mantiene superficies, anillo de progreso, leyendas, bordes y textos secundarios con contraste consistente en dark mode.
+- El control de densidad de la barra superior abre un selector explícito Compacta/Cómoda y ajusta tablas y tarjetas móviles.
 
 ### Navegación
 
@@ -112,5 +114,5 @@ La aplicación evolucionó desde un control interno F29/F22 hacia una base de ge
 
 - `npx tsc --noEmit` sin errores (ejecutado como `npx.cmd` en Windows).
 - Build Vite de producción exitoso; persiste la advertencia no bloqueante del chunk superior a 500 kB.
-- 26 pruebas automatizadas exitosas, incluida la resolución de responsables F29 por nombre operativo tolerante a mayúsculas y tildes.
-- Verificación visual del Resumen dark mode y de F29 con rol `accountant` en 1280×720: contraste legible y solamente filas asignadas al contador.
+- 27 pruebas automatizadas exitosas, incluidas la resolución de responsables F29 por nombre operativo y la separación de etapas del flujo mensual.
+- Verificación visual de F29 en desktop y móvil: filtro inicial sin `Sin movimiento`, contador Pendiente exclusivo, líneas dark mode corregidas y selector de densidad funcional.

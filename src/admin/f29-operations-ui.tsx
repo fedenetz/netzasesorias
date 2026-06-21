@@ -53,6 +53,7 @@ export function F29OperationsDashboard({ rows, updateRow, openClient, year, mont
   const uploadDocument = async (row: ClientRow, file?: File) => { if (!file) return; setDocumentState(current => ({ ...current, [row.id]: { status: 'loading', message: 'Subiendo Excel…' } })); try { const result = await uploadF29Excel(row.id, year, month, file); setDocumentOverrides(current => ({ ...current, [row.id]: result.document })); setDocumentState(current => ({ ...current, [row.id]: { status: 'success', message: 'Excel subido e indexado.' } })); } catch (error) { setDocumentState(current => ({ ...current, [row.id]: { status: 'error', message: error instanceof Error ? error.message : 'No fue posible subir el Excel.', authorize: error instanceof DriveAuthorizationError } })); } };
   const pageSize = 100;
   const responsibles = [...new Set(rows.map(row => row.accountant).filter(Boolean))].sort();
+  useEffect(() => setStatusFilter('active'), [year, month]);
   useEffect(() => setPage(1), [query, statusFilter, responsible, operationFilter, onlyObserved, year, month]);
   const filtered = useMemo(() => rows.filter(row =>
     `${row.rut} ${row.name} ${row.accountingCode ?? ''}`.toLowerCase().includes(query.trim().toLowerCase()) &&

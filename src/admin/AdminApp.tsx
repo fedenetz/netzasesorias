@@ -67,6 +67,7 @@ export function AdminApp({ user, preview, role }: { user: User | null; preview: 
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => window.localStorage.getItem('netz-control-theme') === 'light' ? 'light' : 'dark');
   const [density, setDensity] = useState<'compact' | 'comfortable'>(() => window.localStorage.getItem('netz-control-density') === 'comfortable' ? 'comfortable' : 'compact');
+  const [densityMenuOpen, setDensityMenuOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
 
   useEffect(() => {
@@ -164,7 +165,7 @@ export function AdminApp({ user, preview, role }: { user: User | null; preview: 
             {preview && <span className="preview-badge">Vista local</span>}
             <HelpSystem page={screen} role={role} open={helpOpen} onOpen={() => setHelpOpen(true)} onClose={() => setHelpOpen(false)} />
             <button className="icon-button theme-toggle" aria-label={theme === 'dark' ? 'Usar tema claro' : 'Usar tema oscuro'} title={theme === 'dark' ? 'Tema claro' : 'Tema oscuro'} onClick={() => setTheme(value => value === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? <Sun size={17}/> : <Moon size={17}/>}</button>
-            <button className="icon-button density-toggle" aria-label={density === 'compact' ? 'Usar densidad cómoda' : 'Usar densidad compacta'} title={density === 'compact' ? 'Densidad cómoda' : 'Densidad compacta'} onClick={() => setDensity(value => value === 'compact' ? 'comfortable' : 'compact')}><Gauge size={17}/></button>
+            <div className="density-control"><button className={`icon-button density-toggle ${densityMenuOpen ? 'active' : ''}`} aria-label="Densidad de la interfaz" aria-expanded={densityMenuOpen} title={`Densidad: ${density === 'compact' ? 'compacta' : 'cómoda'}`} onClick={() => setDensityMenuOpen(value => !value)}><Gauge size={17}/></button>{densityMenuOpen&&<div className="density-menu" role="menu" aria-label="Densidad de la interfaz"><span>Densidad</span><button className={density==='compact'?'selected':''} onClick={()=>{setDensity('compact');setDensityMenuOpen(false);}}>Compacta{density==='compact'&&<Check size={13}/>}</button><button className={density==='comfortable'?'selected':''} onClick={()=>{setDensity('comfortable');setDensityMenuOpen(false);}}>Cómoda{density==='comfortable'&&<Check size={13}/>}</button></div>}</div>
             <button className="icon-button" aria-label="Ver actividad" onClick={() => go('activity')}><Bell size={18} /></button>
             <button className="user-menu" onClick={() => setLogoutOpen(true)} title="Cerrar sesión"><EmptyAvatar initials={displayName.split(' ').map(value => value[0]).join('').slice(0,2).toUpperCase()} /><span><strong>{displayName}</strong><small>{role === 'admin' ? 'Administrador' : role === 'accountant' ? 'Contador' : 'Solo lectura'}</small></span><LogOut size={15} /></button>
           </div>

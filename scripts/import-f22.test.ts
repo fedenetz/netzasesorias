@@ -6,6 +6,7 @@ import { parseF22Workbook } from './import-f22';
 test('normalizes annual workflow rows without importing credentials or banking data', () => {
   const workbook = new ExcelJS.Workbook();
   const main = workbook.addWorksheet('Renta AT 2026');
+  main.getRow(1).values = ['CLAVE', 'RUT', 'NOMBRE O RAZON SOCIAL', 'Preparado', 'Enviado F22', 'Guardado', 'Devolucion', 'Pago', 'Fecha presentacion', 'Observaciones', 'Revision', 'OTRO', 'BANCO', 'CUENTA', 'Regimen tributario nuevo'];
   main.getCell(5, 1).value = 'SECRET_PASSWORD';
   main.getCell(5, 2).value = '076.123.456-7';
   main.getCell(5, 3).value = 'CLIENTE PRUEBA SPA';
@@ -20,6 +21,8 @@ test('normalizes annual workflow rows without importing credentials or banking d
   main.getCell(5, 15).value = '14 A';
 
   const detail = workbook.addWorksheet('14 A');
+  detail.getCell(2, 10).value = 'RUT';
+  detail.getCell(2, 12).value = 'NOMBRE O RAZON SOCIAL';
   detail.getCell(3, 4).value = 'ANOTHER_SECRET';
   detail.getCell(3, 10).value = '76.123.456-7';
   detail.getCell(3, 11).value = new Date('2026-03-31T00:00:00Z');

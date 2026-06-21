@@ -4,6 +4,7 @@ import { renderNetzEmail } from '../shared/email-template';
 import { loadClientDocuments } from './client-api';
 import { driveAttachment, loadClientContacts, loadEmailTemplate, loadLastEmailRecipients, loadStoredAttachments, resolveEmployeeDirectoryEmail, sendF29Email, sendF29PaymentReminder, uploadEmailAttachment } from './communication-api';
 import type { ClientDocument, ClientRow, EmailAttachment } from './types';
+import { isF29Workbook } from './operational-utils';
 
 const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const money = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
@@ -23,9 +24,7 @@ function belongsToPeriod(document: ClientDocument, row: ClientRow) {
 }
 
 function suggestedDocument(document: ClientDocument, row: ClientRow) {
-  if (!belongsToPeriod(document, row)) return false;
-  const name = normalize(document.name); const spreadsheet = /\.(xls|xlsx|xlsm)$/.test(name) || document.mimeType === 'application/vnd.google-apps.spreadsheet';
-  return (name.includes('iva') && name.includes('f29')) || spreadsheet;
+  return isF29Workbook({ name: document.name, path: document.drivePath, mimeType: document.mimeType, isFolder: document.isFolder }, row.year, row.month);
 }
 
 function AttachmentReview({ items, busy, onRemove, onReplace }: { items: EmailAttachment[]; busy: boolean; onRemove: (item: EmailAttachment) => void; onReplace: (item: EmailAttachment, file?: File) => void }) {
@@ -52,14 +51,14 @@ export function F29MailComposer({ row, mode = 'summary', onClose, onSent }: { ro
     setLastRecipients(last); setTo((contactEmails.length ? contactEmails : last).join(', ')); setResponsibleEmail(resolvedResponsible); setSubject(template.subject); setBody(template.bodyHtml); setDocuments(docs.filter(item => !item.isFolder && item.module === 'f29')); setStored(uploads);
   } catch (reason) { setError(reason instanceof Error ? reason.message : 'No fue posible preparar el correo.'); } finally { setLoading(false); } })(); }, [row.id, row.periodId, row.accountant, row.accountantEmail, isReminder, previewMode]);
 
-  const exactFolder = documents.filter(document => belongsToPeriod(document, row)); const periodDocuments = exactFolder.length ? exactFolder : documents;
+  const exactFolder = documents.filter(document => belongsToPeriod(document, row)); const periodDocuments = exactFolder.filter(document => suggestedDocument(document, row));
   const suggestedIds = new Set(periodDocuments.filter(document => suggestedDocument(document,row)).map(document => document.id));
   const toggle = (attachment: EmailAttachment) => setSelected(current => current.some(item => sameAttachment(item, attachment)) ? current.filter(item => !sameAttachment(item, attachment)) : [...current, attachment]);
   const remove = (attachment: EmailAttachment) => setSelected(current => current.filter(item => !sameAttachment(item, attachment)));
   const upload = async (file?: File, replacing?: EmailAttachment) => { if (!file || !row.periodId) return; setUploading(true); setError(''); try { const result = await uploadEmailAttachment(row.id,row.periodId,file); setStored(current => [result,...current]); setSelected(current => replacing ? [...current.filter(item => !sameAttachment(item, replacing)), result] : [...current,result]); setAttachmentFault(''); } catch (reason) { const message = reason instanceof Error ? reason.message : 'No fue posible subir el archivo.'; setError(message); setAttachmentFault(`El archivo no quedó listo: ${message}`); } finally { setUploading(false); } };
   const pasteImage = (event: ClipboardEvent<HTMLDivElement>) => { const image = [...event.clipboardData.files].find(file => file.type.startsWith('image/')); if (!image) return; event.preventDefault(); const extension = image.type === 'image/jpeg' ? 'jpg' : 'png'; void upload(new File([image], `comprobante-sii-${row.year}-${String(row.month).padStart(2,'0')}-${Date.now()}.${extension}`, { type: image.type })); };
   const submit = async (schedule = false) => { if (!row.periodId || uploading || attachmentFault) return; if (!responsibleEmail) return setError('El responsable debe tener un email configurado.'); if (invalidAddress || !toList.length) return setError('Revisa los destinatarios ingresados.'); setSending(true); setError(''); try { if (isReminder) await sendF29PaymentReminder(row.periodId,toList,allCc,subject,body); else await sendF29Email(row.periodId,toList,allCc,subject,body,selected,schedule); await onSent(); onClose(); } catch (reason) { setError(reason instanceof Error ? reason.message : 'No fue posible enviar el correo.'); } finally { setSending(false); } };
-  const previewSubject = interpolate(subject,variables); const previewBody = safeHtml(interpolate(body,variables));
+  const previewSubject = interpolate(subject,variables); const previewBody = `${safeHtml(interpolate(body,variables))}${!isReminder ? `<p style="margin-top:18px;color:#6b7782;font-size:12px"><strong>Primer envío registrado:</strong> ${row.emailSentAt ? displayDate(row.emailSentAt) : 'Aún no enviado'}</p>` : ''}`;
   const previewEmail = renderNetzEmail({ title: isReminder ? 'Recordatorio de pago F29' : 'Formulario 29 del período', eyebrow: isReminder ? 'Comunicación de cobranza' : 'Información tributaria', clientName: row.name, periodOrConcept: `${months[row.month - 1]} ${row.year}`, bodyHtml: previewBody, summary: isReminder ? [{ label: 'Cliente', value: row.name }, { label: 'Período', value: `${months[row.month - 1]} ${row.year}` }, { label: 'Monto pendiente', value: money.format(row.amount ?? 0) }, { label: 'Vencimiento', value: row.dueDay ? `Día ${row.dueDay}` : 'Por confirmar' }] : [{ label: 'Período', value: `${months[row.month - 1]} ${row.year}` }, { label: 'Monto informado', value: money.format(row.amount ?? 0) }, { label: 'Estado', value: row.statusLabel }, { label: 'Fecha de presentación', value: displayDate(row.filedDate) }, { label: 'Fecha de pago', value: displayDate(row.taxPaymentDueDate) }], attachments: selected.map(item => ({ name: item.fileName, detail: sourceLabel(item) })), proofs: selected.flatMap(item => item.mimeType?.startsWith('image/') && item.previewUrl ? [{ name: item.fileName, src: item.previewUrl }] : []), responsibleName: row.accountant, replyTo: responsibleEmail || undefined, logoUrl: import.meta.env.VITE_BRAND_LOGO_URL });
   const actionsDisabled = loading || uploading || sending;
   const canPreview = Boolean(toList.length && !invalidAddress && subject.trim() && body.trim() && responsibleEmail && !attachmentFault && !uploading);

@@ -16,6 +16,12 @@ test('renders the production F29 structure and inline proof reference', () => {
   assert.match(html, /Concepción, Chile/);
 });
 
+test('removes a closing embedded in the editable body so the branded signature appears once', () => {
+  const html = renderNetzEmail({ title: 'F29', eyebrow: 'Impuestos', clientName: 'Cliente', periodOrConcept: 'Mayo 2026', bodyHtml: '<p>Adjuntamos antecedentes.</p><p>Saludos cordiales<br>Netz Asesorías</p>', summary: [] });
+  assert.equal((html.match(/Saludos cordiales/gi) ?? []).length, 0);
+  assert.equal((html.match(/Netz Asesorías/g) ?? []).length, 2);
+});
+
 test('renders cobranza values and an explicit HTTPS payment link', () => {
   const html = renderNetzEmail({
     title: 'Recordatorio de pago', eyebrow: 'Comunicación de cobranza', clientName: 'Cliente Dos', periodOrConcept: 'Honorarios mayo', bodyHtml: '<p>Recordatorio cordial.</p>',

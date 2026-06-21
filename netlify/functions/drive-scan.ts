@@ -41,6 +41,10 @@ const periodPathMatches = (path: string, year: number, month: number) => {
   return value.includes(String(year)) && new RegExp(`(^|[\\/_ -])(?:0?${month}|${months[month - 1]})(?=$|[\\/_ .-])`, 'i').test(value) && (value.includes('impuesto') || value.includes('f29'));
 };
 
+const isRelevantPeriodWorkbook = (item: { name: string; path: string; isFolder: boolean }, year: number, month: number) => item.isFolder || (
+  /\.xlsx$/i.test(item.name) && periodPathMatches(item.path, year, month) && /(^|[^a-z0-9])(f29|iva)([^a-z0-9]|$)|formulario\s*29|form\s*29/i.test(item.path.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
+);
+
 const json = (statusCode: number, body: Record<string, unknown>): HandlerResponse => ({
   statusCode,
   headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
@@ -84,12 +88,28 @@ export const handler: Handler = async (event) => {
   type FolderQueueItem = { id: string; path: string; depth: number };
   const items: DriveItem[] = [];
   let scanRoot: FolderQueueItem = { id: client.drive_folder_id, path: '', depth: 0 };
+  const discoverPeriodFolder = async () => {
+    let folders: FolderQueueItem[] = [{ id: client.drive_folder_id, path: '', depth: 0 }];
+    for (let depth = 0; depth < MAX_DEPTH && folders.length; depth++) {
+      const next: FolderQueueItem[] = [];
+      for (let index = 0; index < folders.length; index += FOLDER_BATCH_SIZE) {
+        const batches = await Promise.all(folders.slice(index, index + FOLDER_BATCH_SIZE).map(async folder => {
+          const response = await drive.files.list({ q: `'${folder.id}' in parents and mimeType = '${FOLDER_MIME_TYPE}' and trashed = false`, fields: 'files(id,name)', pageSize: 1000, supportsAllDrives: true, includeItemsFromAllDrives: true });
+          return (response.data.files ?? []).filter(file => file.id && file.name).map(file => ({ id: file.id!, path: folder.path ? `${folder.path}/${file.name}` : file.name!, depth: folder.depth + 1 }));
+        }));
+        for (const batch of batches) for (const folder of batch) { if (periodPathMatches(folder.path, year, month)) return folder; next.push(folder); }
+      }
+      folders = next;
+    }
+    return null;
+  };
   if (scope === 'period') {
     if (!year || month < 1 || month > 12) return json(400, { error: 'A valid year and month are required for a period scan.' });
     const { data: folders } = await supabase.from('documents').select('drive_file_id,drive_metadata').eq('client_id', clientId).eq('mime_type', FOLDER_MIME_TYPE);
     const match = (folders ?? []).map(folder => ({ id: folder.drive_file_id, metadata: folder.drive_metadata as Record<string, unknown> })).filter(folder => periodPathMatches(String(folder.metadata?.path ?? ''), year, month)).sort((a, b) => String(b.metadata?.path ?? '').length - String(a.metadata?.path ?? '').length)[0];
-    if (!match) return json(404, { error: `No se encontró la carpeta indexada de F29 para ${String(month).padStart(2, '0')}/${year}. Escanea el Drive del cliente una vez desde su ficha.` });
-    scanRoot = { id: match.id, path: String(match.metadata?.path ?? ''), depth: Number(match.metadata?.depth ?? 0) };
+    const discovered = match ? null : await discoverPeriodFolder();
+    if (!match && !discovered) return json(404, { error: `No se encontró la carpeta F29 para ${String(month).padStart(2, '0')}/${year} dentro del Drive del cliente.` });
+    scanRoot = match ? { id: match.id, path: String(match.metadata?.path ?? ''), depth: Number(match.metadata?.depth ?? 0) } : discovered!;
   }
   const visitedFolders = new Set<string>([scanRoot.id]);
   let frontier: FolderQueueItem[] = [scanRoot];
@@ -156,7 +176,7 @@ export const handler: Handler = async (event) => {
   }
   const scannedAt = new Date().toISOString();
   for (let index = 0; index < items.length; index += 500) {
-    const batch = items.slice(index, index + 500);
+    const batch = items.slice(index, index + 500).filter(item => scope !== 'period' || isRelevantPeriodWorkbook(item, year, month));
     const payload = batch.map(item => { const inferred = item.isFolder ? 'other' : inferDocumentType(item.name, item.path, item.mimeType); const manual = manualTypes.get(item.id); return ({ client_id: client.id, drive_file_id: item.id, file_name: item.name, mime_type: item.mimeType, modified_at: item.modifiedTime, drive_web_view_link: item.webViewLink, document_type: manual ?? inferred, inferred_document_type: inferred, classification_source: manual ? 'manual' : 'inferred', processing_status: inferred === 'other' && !manual ? 'unclassified' : 'classified', scanned_at: scannedAt, drive_metadata: { size: item.size, md5Checksum: item.md5Checksum, path: item.path, parent_folder_id: item.parentFolderId, depth: item.depth, module: item.module, is_folder: item.isFolder }, updated_at: scannedAt }); });
     const { error } = await supabase.from('documents').upsert(payload, { onConflict: 'drive_file_id' });
     if (error) errors.push(`Lote ${Math.floor(index / 500) + 1}: ${error.message}`);

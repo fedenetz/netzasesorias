@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import type { ActivityEntry, ClientBillingSummary, ClientDocument, ClientObservation, ClientRow, DocumentKind } from './types';
+import { isF29Workbook } from './operational-utils';
 
 const profileName = (value: unknown) => Array.isArray(value) ? String(value[0]?.full_name ?? 'Sistema') : String((value as { full_name?: string } | null)?.full_name ?? 'Sistema');
 
@@ -72,9 +73,7 @@ export async function uploadF29Excel(clientId: string, year: number, month: numb
 
 export async function loadF29PeriodDocument(clientId: string, year: number, month: number) {
   const documents = await loadClientDocuments(clientId);
-  const months = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-  const monthPattern = new RegExp(`(^|[\\/_ -])(?:0?${month}|${months[month - 1]})(?=$|[\\/_ .-])`, 'i');
-  const document = documents.find(item => !item.isFolder && (/\.(xls|xlsx|xlsm)$/i.test(item.name) || /spreadsheet|excel/.test(item.mimeType ?? '')) && item.drivePath.includes(String(year)) && monthPattern.test(item.drivePath.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()) && /f29|impuesto/i.test(item.drivePath));
+  const document = documents.find(item => isF29Workbook({ name: item.name, path: item.drivePath, mimeType: item.mimeType, isFolder: item.isFolder }, year, month));
   return document ? { id: document.id, name: document.name, url: document.driveUrl } : null;
 }
 

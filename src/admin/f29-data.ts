@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { F29_STATUS_LABELS, type ClientRow, type F29StatusCode } from './types';
+import { isF29Workbook } from './operational-utils';
 
 type ClientRecord = {
   id: string;
@@ -57,13 +58,9 @@ export type PeriodHistory = Pick<PeriodRecord, 'id' | 'year' | 'month' | 'amount
 
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).map(part => part[0]).join('').slice(0, 2).toUpperCase() || '—';
 const lastUpdated = (value: string) => new Intl.DateTimeFormat('es-CL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
-const monthTokens = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const isPeriodExcel = (document: { file_name: string; mime_type: string | null; drive_metadata: unknown }, year: number, month: number) => {
   const metadata = document.drive_metadata && typeof document.drive_metadata === 'object' && !Array.isArray(document.drive_metadata) ? document.drive_metadata as Record<string, unknown> : {};
-  const text = `${String(metadata.path ?? '')}/${document.file_name}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  const excel = /\.(xls|xlsx|xlsm)$/i.test(document.file_name) || /spreadsheet|excel/.test(document.mime_type ?? '');
-  const monthPattern = new RegExp(`(^|[\\/_ -])(?:0?${month}|${monthTokens[month - 1]})(?=$|[\\/_ .-])`, 'i');
-  return excel && text.includes(String(year)) && monthPattern.test(text) && (text.includes('f29') || text.includes('impuesto'));
+  return isF29Workbook({ name: document.file_name, path: String(metadata.path ?? ''), mimeType: document.mime_type }, year, month);
 };
 
 export async function loadAdminRows(year: number, month: number, includeAdminObservation = false): Promise<ClientRow[]> {
@@ -102,6 +99,7 @@ export async function loadAdminRows(year: number, month: number, includeAdminObs
     const statusCode: F29StatusCode | null = taxPaid && (amount ?? 0) > 0 ? 'D' : overdue ? 'E' : period?.email_status === 'sent' ? 'C' : period?.status_code ?? null;
     return {
       id: client.id,
+      assignedUserId: client.assigned_user_id,
       periodId: period?.id,
       rut: client.rut,
       name: client.legal_name,

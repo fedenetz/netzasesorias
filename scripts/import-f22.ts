@@ -92,29 +92,63 @@ const clientRows = (sheet: Worksheet, startRow: number, rutColumn: number, nameC
   return rows;
 };
 
+const headerKey = (value: CellValue) => text(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/\s+/g, ' ');
+const findHeaders = (sheet: Worksheet, required: string[], maxRows = 8) => {
+  for (let row = 1; row <= Math.min(maxRows, sheet.rowCount); row++) {
+    const headers = new Map<string, number>();
+    for (let column = 1; column <= sheet.columnCount; column++) {
+      const key = headerKey(sheet.getCell(row, column).value);
+      if (key) headers.set(key, column);
+    }
+    if (required.every(pattern => [...headers.keys()].some(key => key.includes(pattern)))) return { row, headers };
+  }
+  throw new Error(`La hoja "${sheet.name}" no contiene las columnas obligatorias: ${required.join(', ')}.`);
+};
+const columnFor = (headers: Map<string, number>, aliases: string[]) => [...headers].find(([key]) => aliases.some(alias => key.includes(alias)))?.[1];
+
 export function parseF22Workbook(workbook: Workbook, taxYear = 2026) {
   const main = workbook.getWorksheet('Renta AT 2026');
   if (!main) throw new Error('No se encontró la hoja "Renta AT 2026".');
+  const mainHeader = findHeaders(main, ['rut', 'nombre']);
+  const rutColumn = columnFor(mainHeader.headers, ['rut']);
+  const nameColumn = columnFor(mainHeader.headers, ['nombre o razon social', 'razon social', 'nombre']);
+  if (!rutColumn || !nameColumn) throw new Error('La hoja "Renta AT 2026" requiere columnas RUT y NOMBRE O RAZON SOCIAL.');
+  const preparedColumn = columnFor(mainHeader.headers, ['preparad']);
+  const sentColumn = columnFor(mainHeader.headers, ['enviado f22', 'f22 enviado', 'enviado']);
+  const savedColumn = columnFor(mainHeader.headers, ['guardad']);
+  const refundColumn = columnFor(mainHeader.headers, ['devolucion']);
+  const paymentColumn = columnFor(mainHeader.headers, ['pago']);
+  const filedDateColumn = columnFor(mainHeader.headers, ['fecha present', 'fecha envio']);
+  const observationColumn = columnFor(mainHeader.headers, ['observ']);
+  const reviewColumn = columnFor(mainHeader.headers, ['revision', 'estado']);
+  const regimeColumn = columnFor(mainHeader.headers, ['regimen tributario nuevo', 'regimen tributario']);
+  const detailColumn = columnFor(mainHeader.headers, ['simplificada/completa', 'simplificada']);
+  const oldRegimeColumn = [...mainHeader.headers].find(([key]) => key.includes('regimen tributario antiguo'))?.[1];
+  const accountingColumn = columnFor(mainHeader.headers, ['contab.']);
   const rows = new Map<string, ParsedF22Row>();
-  for (const sourceRow of clientRows(main, 5, 2, 3)) {
-    const key = rutKey(main.getCell(sourceRow, 2).value);
-    const filedDate = date(main.getCell(sourceRow, 9).value);
+  for (const sourceRow of clientRows(main, mainHeader.row + 1, rutColumn, nameColumn)) {
+    const key = rutKey(main.getCell(sourceRow, rutColumn).value);
+    const filedDate = filedDateColumn ? date(main.getCell(sourceRow, filedDateColumn).value) : null;
     rows.set(key, {
-      rut: formatRut(key), rut_key: key, legal_name: text(main.getCell(sourceRow, 3).value).trim(), tax_year: taxYear,
-      prepared_to_send: bool(main.getCell(sourceRow, 4).value), sent: bool(main.getCell(sourceRow, 5).value), saved: bool(main.getCell(sourceRow, 6).value),
-      refund_amount: amount(main.getCell(sourceRow, 7).value), payment_amount: amount(main.getCell(sourceRow, 8).value), filed_date: filedDate,
-      review_status: nullableText(main.getCell(sourceRow, 12).value), tax_regime: nullableText(main.getCell(sourceRow, 15).value), regime_detail: nullableText(main.getCell(sourceRow, 16).value), old_tax_regime: nullableText(main.getCell(sourceRow, 17).value), accounting_number: nullableText(main.getCell(sourceRow, 18).value),
-      bce_date: null, bce_status: 'Pendiente', f22_ready: null, f22_sent: bool(main.getCell(sourceRow, 5).value), dj_1948: null, dj_1948_sent: null, dj_1949: null, provisional: null,
+      rut: formatRut(key), rut_key: key, legal_name: text(main.getCell(sourceRow, nameColumn).value).trim(), tax_year: taxYear,
+      prepared_to_send: preparedColumn ? bool(main.getCell(sourceRow, preparedColumn).value) : false, sent: sentColumn ? bool(main.getCell(sourceRow, sentColumn).value) : false, saved: savedColumn ? bool(main.getCell(sourceRow, savedColumn).value) : false,
+      refund_amount: refundColumn ? amount(main.getCell(sourceRow, refundColumn).value) : null, payment_amount: paymentColumn ? amount(main.getCell(sourceRow, paymentColumn).value) : null, filed_date: filedDate,
+      review_status: reviewColumn ? nullableText(main.getCell(sourceRow, reviewColumn).value) : null, tax_regime: regimeColumn ? nullableText(main.getCell(sourceRow, regimeColumn).value) : null, regime_detail: detailColumn ? nullableText(main.getCell(sourceRow, detailColumn).value) : null, old_tax_regime: oldRegimeColumn ? nullableText(main.getCell(sourceRow, oldRegimeColumn).value) : null, accounting_number: accountingColumn ? nullableText(main.getCell(sourceRow, accountingColumn).value) : null,
+      bce_date: null, bce_status: 'Pendiente', f22_ready: null, f22_sent: sentColumn ? bool(main.getCell(sourceRow, sentColumn).value) : false, dj_1948: null, dj_1948_sent: null, dj_1949: null, provisional: null,
       utility_loss_text: null, utility_loss_amount: null, dividends_text: null, dividends_amount: null, partners: null, refund_payment_text: null,
-      observation: nullableText(main.getCell(sourceRow, 10).value), source_sheet: main.name, source_row: sourceRow,
+      observation: observationColumn ? nullableText(main.getCell(sourceRow, observationColumn).value) : null, source_sheet: main.name, source_row: sourceRow,
     });
   }
 
   for (const sheetName of ['14 A', '14DN3']) {
     const sheet = workbook.getWorksheet(sheetName);
     if (!sheet) continue;
-    for (const sourceRow of clientRows(sheet, 3, 10, 12)) {
-      const key = rutKey(sheet.getCell(sourceRow, 10).value);
+    const detailHeader = findHeaders(sheet, ['rut', 'nombre']);
+    const detailRut = columnFor(detailHeader.headers, ['rut']);
+    const detailName = columnFor(detailHeader.headers, ['nombre o razon social', 'razon social', 'nombre']);
+    if (!detailRut || !detailName) throw new Error(`La hoja "${sheetName}" requiere columnas RUT y NOMBRE O RAZON SOCIAL.`);
+    for (const sourceRow of clientRows(sheet, detailHeader.row + 1, detailRut, detailName)) {
+      const key = rutKey(sheet.getCell(sourceRow, detailRut).value);
       const target = rows.get(key);
       if (!target) continue;
       const bceDate = date(sheet.getCell(sourceRow, 11).value);

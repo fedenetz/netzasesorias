@@ -26,6 +26,7 @@ export const F29_STATUS_LABELS: Record<F29StatusCode, string> = {
 
 export interface ClientRow {
   id: string;
+  assignedUserId?: string | null;
   periodId?: string;
   rut: string;
   name: string;

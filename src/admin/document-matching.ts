@@ -66,7 +66,9 @@ export function f29DocumentRank(document: DocumentMatchCandidate, year: number, 
   if (F29_NOISE.test(name)) return 0;
   if (/(^|[^a-z0-9])iva(?=$|[^a-z0-9])/.test(name)) return 200;
   if (/(^|[^a-z0-9])imptos?\.?|impuestos?(?=$|[^a-z0-9])/.test(name)) return 100;
-  return 0;
+  // The monthly F29 folder is authoritative: accountants often name the workbook
+  // after the client rather than including "F29" in the filename.
+  return 50;
 }
 
 export function isF29Workbook(document: DocumentMatchCandidate, year: number, month: number) {

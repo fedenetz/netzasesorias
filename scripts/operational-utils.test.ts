@@ -10,6 +10,7 @@ test('F29 suggestions require a matching month, accounting name and xlsx extensi
   assert.equal(isF29Workbook({ name: 'F29 mayo 2026.xls', path: 'Impuestos/F.29/F.29 - 2026/05.2026' }, 2026, 5), true);
   assert.equal(isF29Workbook({ name: 'F.29 - 05.2026 - Cliente.xlsx', path: 'Impuestos/F.29/F.29 - 2026/05.2026' }, 2026, 5), true);
   assert.equal(isF29Workbook({ name: 'Resumen F-29 05.26.xlsx', path: 'Impuestos/F.29/F.29 - 2026/05.2026' }, 2026, 5), true);
+  assert.equal(isF29Workbook({ name: 'AINAHUE CLUB DE CAMPO LTDA.xlsx', path: 'Impuestos/F.29/F.29 - 2026/05.2026' }, 2026, 5), true);
   assert.equal(isF29Workbook({ name: 'RCV_COMPRA_REGISTRO_202605.xlsx', path: 'Impuestos/F.29/F.29 - 2026/05.2026' }, 2026, 5), false);
 });
 

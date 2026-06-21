@@ -4,6 +4,7 @@ import { Readable } from 'node:stream';
 import { inferDocumentType } from './drive-scan';
 import { authenticate, functionError } from './_shared';
 import { inferDocumentArea, pathMatchesMonthlyPeriod } from '../../src/admin/document-matching';
+import { ensureF29LoadedStatus } from './_f29-document-status';
 
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
@@ -49,6 +50,7 @@ export const handler: Handler = async event => {
     const now = new Date().toISOString(); const path = `${String(folder.metadata?.path ?? '')}/${name}`.replace(/^\//, ''); const inferred = inferDocumentType(name, path, created.data.mimeType ?? mime);
     const { data: document, error } = await supabase.from('documents').upsert({ client_id: clientId, drive_file_id: created.data.id, file_name: created.data.name ?? name, mime_type: created.data.mimeType ?? mime, drive_web_view_link: created.data.webViewLink, modified_at: created.data.modifiedTime ?? now, document_type: inferred, inferred_document_type: inferred, classification_source: 'inferred', processing_status: 'classified', scanned_at: now, drive_metadata: { path, parent_folder_id: folder.id, depth: Number(folder.metadata?.depth ?? 0) + 1, module: 'f29', size: created.data.size, md5Checksum: created.data.md5Checksum }, updated_at: now }, { onConflict: 'drive_file_id' }).select('id,file_name,drive_web_view_link').single();
     if (error || !document) throw error ?? new Error('No se pudo indexar el archivo subido.');
+    await ensureF29LoadedStatus({ supabase, actorId: user.id, clientId, year, month, source: 'direct_upload', documentId: document.id });
     await supabase.from('activity_log').insert({ actor_id: user.id, client_id: clientId, action: 'f29_document_uploaded', entity_type: 'document', entity_id: document.id, after_data: { year, month, file_name: document.file_name, folder_path: folder.metadata?.path, drive_file_id: created.data.id } });
     return json(201, { document: { id: document.id, name: document.file_name, url: document.drive_web_view_link } });
   } catch (error) {

@@ -10,6 +10,8 @@ const make = (id: string, rut: string, name: string, accountant: string, statusC
   billingDueDate: '2026-06-20', paidAt: id === '2' ? '2026-06-17T12:00:00Z' : null, paymentMethod: '', paymentNotes: '',
   taxPaid: statusCode === 'D', taxPaidAt: statusCode === 'D' ? '2026-06-17T12:00:00Z' : null, taxLastReminderAt: id === '4' ? '2026-06-18T15:00:00Z' : null,
   taxPaymentDueDate: '2026-06-22',
+  driveFolderId: documents ? `preview-drive-${id}` : null,
+  f29Document: documents && ['A', 'C', 'D'].includes(statusCode) ? { id: `preview-f29-${id}`, name: `${name} - F29 05.2026.xlsx`, url: 'https://drive.google.com/' } : null,
 });
 
 export const clients: ClientRow[] = [

@@ -34,6 +34,7 @@ La aplicación evolucionó desde un control interno F29/F22 hacia una base de ge
 - RN Observaciones visible para todos y editable solamente por administradores.
 - Fecha del primer email y fecha límite electrónica con fines de semana/feriados.
 - Estado del Excel por cliente/período, recarga de la carpeta mensual y subida directa `.xls/.xlsx/.xlsm`, con estado por fila y auditoría.
+- La carpeta mensual F29 es fuente autoritativa para asociar Excel aunque el nombre use solamente la razón social; el primer hallazgo o subida crea/clasifica el período como `Cargada`, deja auditoría y conserva controles de reindexación/corrección.
 - Historial con próximos dos meses en prioridad visual baja, sin tratarlos como alertas.
 - Las cuentas `accountant` ven y operan solamente los F29 vinculados a su identidad. La asignación resuelve primero `responsible_user_id`, luego el nombre operativo de `responsible_name` contra el perfil/safelist y finalmente `clients.assigned_user_id`.
 - El flujo mensual F29 abre en `Pendientes`: todo período clasificado y aún no pagado. `Sin movimiento` y `Sin estado` quedan ocultos por defecto, con filtros explícitos; el contador responsable debe clasificar los períodos sin estado.

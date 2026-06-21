@@ -36,7 +36,7 @@ La aplicación evolucionó desde un control interno F29/F22 hacia una base de ge
 - Estado del Excel por cliente/período, recarga de la carpeta mensual y subida directa `.xls/.xlsx/.xlsm`, con estado por fila y auditoría.
 - Historial con próximos dos meses en prioridad visual baja, sin tratarlos como alertas.
 - Las cuentas `accountant` ven y operan solamente los F29 vinculados a su identidad. La asignación resuelve primero `responsible_user_id`, luego el nombre operativo de `responsible_name` contra el perfil/safelist y finalmente `clients.assigned_user_id`.
-- El flujo mensual F29 separa `Pendiente`, `Cargada`, `Informada`, `Pagada` y `Sin estado`; el contador debe resolver los períodos sin estado. `Sin movimiento` queda oculto por defecto al abrir o cambiar de mes y conserva un filtro explícito.
+- El flujo mensual F29 abre en `Pendientes`: todo período clasificado y aún no pagado. `Sin movimiento` y `Sin estado` quedan ocultos por defecto, con filtros explícitos; el contador responsable debe clasificar los períodos sin estado.
 
 ### Email F29
 
@@ -73,11 +73,16 @@ La aplicación evolucionó desde un control interno F29/F22 hacia una base de ge
 - Manifest de `Netz Control` y service worker instalable. Solo conserva manifest/icono; navegación, funciones y datos autenticados son network-only.
 - El Resumen mantiene superficies, anillo de progreso, leyendas, bordes y textos secundarios con contraste consistente en dark mode.
 - El control de densidad de la barra superior abre un selector explícito Compacta/Cómoda y ajusta tablas y tarjetas móviles.
+- Dark mode fue auditado transversalmente en Resumen, Clientes, F29, F22, Facturación, Documentos, Actividad y Configuración, incluidos modales y estados móviles.
+- Facturación y métricas F29 redistribuyen su espacio en móvil/anchos estrechos; los errores internos ya no reservan una pantalla completa.
+- Los responsables usan color solamente en el avatar. La cartera omite las columnas Documentos y acción redundante, conservando esos datos en filtros e inspector.
 
 ### Navegación
 
 - Resumen, Clientes, F29, F22, Facturación, Documentos, Actividad y Configuración tienen rutas funcionales.
 - Búsqueda global de clientes y acceso a auditoría desde la campana.
+- Sidebar plegable en escritorio, con preferencia persistida y expansión completa en móvil.
+- El compositor F29 usa el ancho recuperado con navegación de pasos a la derecha y una zona de adjuntos/Excel más amplia.
 
 ## Fuera de alcance o pendiente
 
@@ -114,5 +119,5 @@ La aplicación evolucionó desde un control interno F29/F22 hacia una base de ge
 
 - `npx tsc --noEmit` sin errores (ejecutado como `npx.cmd` en Windows).
 - Build Vite de producción exitoso; persiste la advertencia no bloqueante del chunk superior a 500 kB.
-- 27 pruebas automatizadas exitosas, incluidas la resolución de responsables F29 por nombre operativo y la separación de etapas del flujo mensual.
-- Verificación visual de F29 en desktop y móvil: filtro inicial sin `Sin movimiento`, contador Pendiente exclusivo, líneas dark mode corregidas y selector de densidad funcional.
+- 27 pruebas automatizadas exitosas, incluidas la resolución de responsables F29 y la semántica de trabajo pendiente.
+- Auditoría visual en 8 rutas, desktop, móvil y ancho intermedio: sin desbordamiento horizontal, superficies dark consistentes, sidebar plegable, Facturación responsive y compositor F29 ampliado.

@@ -4,7 +4,7 @@ import {
   Activity, AlertTriangle, ArrowRight, Bell, Building2, CalendarDays, Check, ChevronDown,
   ChevronsUpDown, CircleDollarSign, Clock3, Cloud, FileSpreadsheet, Files, FolderOpen,
   LayoutDashboard, LogOut, Menu, MoreHorizontal, Search, Settings, ShieldCheck, SlidersHorizontal,
-  Users, X, Plus, Save, ExternalLink, RefreshCw, Mail, LockKeyhole, Sun, Moon, Gauge,
+  Users, X, Plus, Save, ExternalLink, RefreshCw, Mail, LockKeyhole, Sun, Moon, Gauge, PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react';
 import { clients as seedClients, docs } from './data';
 import { F29_STATUS_LABELS, type ActivityEntry, type ClientBillingSummary, type ClientDocument, type ClientObservation, type ClientRow, type DocumentKind, type F22Row, type F29StatusCode } from './types';
@@ -63,6 +63,7 @@ export function AdminApp({ user, preview, role }: { user: User | null; preview: 
   const [dataLoading, setDataLoading] = useState(!preview);
   const [dataError, setDataError] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.localStorage.getItem('netz-control-sidebar') === 'collapsed');
   const [saveStates, setSaveStates] = useState<Record<string, 'saving' | 'saved' | 'error'>>({});
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => window.localStorage.getItem('netz-control-theme') === 'light' ? 'light' : 'dark');
@@ -76,6 +77,8 @@ export function AdminApp({ user, preview, role }: { user: User | null; preview: 
     window.localStorage.setItem('netz-control-theme', theme);
     window.localStorage.setItem('netz-control-density', density);
   }, [density, theme]);
+
+  useEffect(() => { window.localStorage.setItem('netz-control-sidebar', sidebarCollapsed ? 'collapsed' : 'expanded'); }, [sidebarCollapsed]);
 
   useEffect(() => {
     if (preview) return;
@@ -141,9 +144,9 @@ export function AdminApp({ user, preview, role }: { user: User | null; preview: 
   if (role === 'viewer') return <ViewerWorkspace rows={rows} loading={dataLoading} error={dataError} displayName={displayName} signOut={signOut} helpOpen={helpOpen} setHelpOpen={setHelpOpen} />;
 
   return (
-    <div className="control-shell">
+    <div className={`control-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
       <aside className={`control-sidebar ${sidebarOpen ? 'is-open' : ''}`}>
-        <div className="sidebar-brand"><span><img src="/brand/icono-blanco.png" alt="" /><strong>NETZ</strong></span><button onClick={() => setSidebarOpen(false)}><X size={18} /></button></div>
+        <div className="sidebar-brand"><span><img src="/brand/icono-blanco.png" alt="" /><strong>NETZ</strong></span><span className="sidebar-brand-actions"><button className="sidebar-collapse" aria-label={sidebarCollapsed?'Expandir navegación':'Contraer navegación'} title={sidebarCollapsed?'Expandir navegación':'Contraer navegación'} onClick={()=>setSidebarCollapsed(value=>!value)}>{sidebarCollapsed?<PanelLeftOpen size={18}/>:<PanelLeftClose size={18}/>}</button><button className="sidebar-mobile-close" aria-label="Cerrar navegación" onClick={() => setSidebarOpen(false)}><X size={18} /></button></span></div>
         <div className="workspace-switch"><span className="workspace-icon">N</span><span><strong>Netz Asesorías</strong><small>Operaciones</small></span><ChevronsUpDown size={15} /></div>
         <nav className="control-nav" aria-label="Operaciones">
           <p>Principal</p>

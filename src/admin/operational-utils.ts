@@ -73,13 +73,12 @@ export function canEditClient(role: OperationalRole, userId: string | null | und
   return role === 'admin' || (role === 'accountant' && Boolean(userId) && userId === assignedUserId);
 }
 
-export type F29WorkflowFilter = 'active' | 'pending' | 'loaded' | 'informed' | 'paid' | 'missing' | 'issues' | 'postponed' | 'no_movement' | 'all';
+export type F29WorkflowFilter = 'pending' | 'loaded' | 'informed' | 'paid' | 'missing' | 'issues' | 'postponed' | 'no_movement' | 'all';
 type F29WorkflowRow = { periodId?: string; statusCode: string | null; taxPaid?: boolean };
 
 export function matchesF29Workflow(row: F29WorkflowRow, filter: F29WorkflowFilter) {
   if (filter === 'all') return true;
-  if (filter === 'active') return row.statusCode !== 'F';
-  if (filter === 'pending') return row.statusCode === 'E';
+  if (filter === 'pending') return Boolean(row.periodId) && row.statusCode !== null && !['D', 'F'].includes(row.statusCode) && !row.taxPaid;
   if (filter === 'loaded') return row.statusCode === 'A';
   if (filter === 'informed') return row.statusCode === 'C';
   if (filter === 'paid') return row.statusCode === 'D' || Boolean(row.taxPaid);

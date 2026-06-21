@@ -47,14 +47,19 @@ test('F29 operational names resolve to the linked accountant profile', () => {
   assert.equal(resolveOperationalAssigneeId(null, null, 'OTRA PERSONA', profiles), null);
 });
 
-test('F29 workflow hides no-movement rows and counts pending as its own stage', () => {
+test('F29 workflow treats every classified unpaid period as pending work', () => {
   const pending = { periodId: 'p1', statusCode: 'E', taxPaid: false };
+  const loaded = { periodId: 'p2', statusCode: 'A', taxPaid: false };
+  const informed = { periodId: 'p3', statusCode: 'C', taxPaid: false };
+  const paid = { periodId: 'p4', statusCode: 'D', taxPaid: true };
   const noMovement = { periodId: 'p2', statusCode: 'F', taxPaid: false };
   const missing = { periodId: 'p3', statusCode: null, taxPaid: false };
-  assert.equal(matchesF29Workflow(pending, 'active'), true);
-  assert.equal(matchesF29Workflow(noMovement, 'active'), false);
   assert.equal(matchesF29Workflow(noMovement, 'no_movement'), true);
   assert.equal(matchesF29Workflow(missing, 'pending'), false);
   assert.equal(matchesF29Workflow(pending, 'pending'), true);
+  assert.equal(matchesF29Workflow(loaded, 'pending'), true);
+  assert.equal(matchesF29Workflow(informed, 'pending'), true);
+  assert.equal(matchesF29Workflow(paid, 'pending'), false);
+  assert.equal(matchesF29Workflow(noMovement, 'pending'), false);
   assert.ok(f29WorkflowPriority(missing) < f29WorkflowPriority(pending));
 });

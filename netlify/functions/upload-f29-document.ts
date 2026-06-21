@@ -3,15 +3,14 @@ import { google } from 'googleapis';
 import { Readable } from 'node:stream';
 import { inferDocumentType } from './drive-scan';
 import { authenticate, functionError } from './_shared';
+import { inferDocumentArea, pathMatchesMonthlyPeriod } from '../../src/admin/document-matching';
 
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
 const EXCEL_MIMES = new Set(['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel.sheet.macroenabled.12', 'application/octet-stream']);
 const json = (statusCode: number, body: Record<string, unknown>): HandlerResponse => ({ statusCode, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }, body: JSON.stringify(body) });
 const periodMatch = (path: string, year: number, month: number) => {
-  const months = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-  const value = path.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  return value.includes(String(year)) && new RegExp(`(^|[\\/_ -])(?:0?${month}|${months[month - 1]})(?=$|[\\/_ .-])`, 'i').test(value) && (value.includes('impuesto') || value.includes('f29'));
+  return pathMatchesMonthlyPeriod(path, year, month) && inferDocumentArea(path) === 'f29';
 };
 
 export const handler: Handler = async event => {

@@ -1,6 +1,7 @@
 import type { Handler, HandlerResponse } from '@netlify/functions';
 import { google } from 'googleapis';
 import { authenticate, functionError } from './_shared';
+import { inferDocumentArea, inferOperationalDocumentKind, isF29Workbook, pathMatchesMonthlyPeriod } from '../../src/admin/document-matching';
 
 const DRIVE_READ_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
 const DRIVE_FULL_SCOPE = 'https://www.googleapis.com/auth/drive';
@@ -12,19 +13,15 @@ const FOLDER_BATCH_SIZE = 8;
 export const hasDriveReadScope = (scopes: string[]) => scopes.includes(DRIVE_READ_SCOPE) || scopes.includes(DRIVE_FULL_SCOPE);
 
 export const inferDriveModule = (path: string): 'f29' | 'f22' | 'other' => {
-  const normalized = path.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  if (/(^|\/)impuestos?(\/|$)/.test(normalized)) return 'f29';
-  if (/(^|\/)renta(\/|$)/.test(normalized)) return 'f22';
-  return 'other';
+  return inferDocumentArea(path);
 };
 
 type DocumentKind = 'f29' | 'rcv' | 'bce' | 'f22' | 'dj_1948' | 'dj_1949' | 'excel' | 'pdf' | 'certificate' | 'receipt' | 'contract' | 'other';
 export const inferDocumentType = (name: string, path: string, mimeType: string | null): DocumentKind => {
   const value = `${path}/${name}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  if (/(^|[^a-z0-9])f29([^a-z0-9]|$)|impuestos?\/.*(?:f29|formulario.?29)/.test(value)) return 'f29';
-  if (/(^|[^a-z0-9])f22([^a-z0-9]|$)|formulario.?22/.test(value)) return 'f22';
+  const operationalKind = inferOperationalDocumentKind({ name, path, mimeType });
+  if (operationalKind) return operationalKind;
   if (/(^|[^a-z0-9])rcv([^a-z0-9]|$)|registro.*compra.*venta/.test(value)) return 'rcv';
-  if (/(^|[^a-z0-9])bce([^a-z0-9]|$)|balance.*comprobacion/.test(value)) return 'bce';
   if (/dj.?1948/.test(value)) return 'dj_1948';
   if (/dj.?1949/.test(value)) return 'dj_1949';
   if (/certificad/.test(value)) return 'certificate';
@@ -36,14 +33,10 @@ export const inferDocumentType = (name: string, path: string, mimeType: string |
 };
 
 const periodPathMatches = (path: string, year: number, month: number) => {
-  const months = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-  const value = path.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  return value.includes(String(year)) && new RegExp(`(^|[\\/_ -])(?:0?${month}|${months[month - 1]})(?=$|[\\/_ .-])`, 'i').test(value) && (value.includes('impuesto') || value.includes('f29'));
+  return pathMatchesMonthlyPeriod(path, year, month) && inferDocumentArea(path) === 'f29';
 };
 
-const isRelevantPeriodWorkbook = (item: { name: string; path: string; isFolder: boolean }, year: number, month: number) => item.isFolder || (
-  /\.xlsx$/i.test(item.name) && periodPathMatches(item.path, year, month) && /(^|[^a-z0-9])(f29|iva)([^a-z0-9]|$)|formulario\s*29|form\s*29/i.test(item.path.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
-);
+const isRelevantPeriodWorkbook = (item: { name: string; path: string; mimeType: string | null; isFolder: boolean }, year: number, month: number) => item.isFolder || isF29Workbook(item, year, month);
 
 const json = (statusCode: number, body: Record<string, unknown>): HandlerResponse => ({
   statusCode,

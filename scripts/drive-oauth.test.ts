@@ -15,8 +15,9 @@ test('maps nested Drive paths to the accounting workflow area', () => {
   assert.equal(inferDriveModule('Personal/Contratos/documento.pdf'), 'other');
 });
 
-test('infers operational document types from name, extension and folder context', () => {
-  assert.equal(inferDocumentType('resumen.xlsx', 'Impuestos/2026/F29/06/resumen.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'), 'f29');
+test('infers operational document types from the filename without inheriting a folder false positive', () => {
+  assert.equal(inferDocumentType('resumen.xlsx', 'Impuestos/2026/F29/06/resumen.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'), 'excel');
+  assert.equal(inferDocumentType('F.29 - 05.2026 - Cliente.xlsx', 'Impuestos/F.29/F.29 - 2026/05.2026', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'), 'f29');
   assert.equal(inferDocumentType('certificado_vigencia.pdf', 'Legal/certificado_vigencia.pdf', 'application/pdf'), 'certificate');
   assert.equal(inferDocumentType('comprobante_transferencia.pdf', 'Pagos/comprobante_transferencia.pdf', 'application/pdf'), 'receipt');
   assert.equal(inferDocumentType('datos.xlsx', 'General/datos.xlsx', 'application/vnd.ms-excel'), 'excel');

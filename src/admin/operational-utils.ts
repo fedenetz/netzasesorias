@@ -1,7 +1,8 @@
 export type OperationalRole = 'admin' | 'accountant' | 'viewer';
 
-const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+export { documentMatchesPeriod, isF29Workbook } from './document-matching';
+import { inferOperationalDocumentKind, isF29Workbook } from './document-matching';
 
 export function normalizeOperationalName(value: string | null | undefined) {
   return normalize(value ?? '').replace(/\s+/g, ' ').trim();
@@ -21,18 +22,6 @@ export function resolveOperationalAssigneeId(
 
 export type DocumentCandidate = { name: string; path?: string; mimeType?: string | null; modifiedAt?: string | null; isFolder?: boolean };
 
-export function documentMatchesPeriod(document: DocumentCandidate, year: number, month: number) {
-  const value = normalize(`${document.path ?? ''}/${document.name}`);
-  const monthPattern = new RegExp(`(^|[\\/_ .-])(?:0?${month}|${MONTHS[month - 1]})(?=$|[\\/_ .-])`, 'i');
-  return value.includes(String(year)) && monthPattern.test(value);
-}
-
-export function isF29Workbook(document: DocumentCandidate, year: number, month: number) {
-  if (document.isFolder || !/\.xlsx$/i.test(document.name)) return false;
-  const value = normalize(`${document.path ?? ''}/${document.name}`);
-  return documentMatchesPeriod(document, year, month) && /(^|[^a-z0-9])(f29|iva)([^a-z0-9]|$)|formulario\s*29|form\s*29/.test(value);
-}
-
 export function filterRecentF29Workbooks(documents: DocumentCandidate[], now = new Date()) {
   const periods = Array.from({ length: 3 }, (_, offset) => {
     const date = new Date(now.getFullYear(), now.getMonth() - offset, 1);
@@ -43,11 +32,12 @@ export function filterRecentF29Workbooks(documents: DocumentCandidate[], now = n
 
 export type RelevantDocumentType = 'F29' | 'IVA' | 'BCE' | 'Balance';
 export function inferRelevantDocumentType(document: DocumentCandidate): RelevantDocumentType | null {
+  const kind = inferOperationalDocumentKind(document);
+  if (kind === 'f29') return 'F29';
+  if (kind === 'bce') return 'BCE';
   if (document.isFolder) return null;
-  const value = normalize(`${document.path ?? ''}/${document.name}`);
-  if (/(^|[^a-z0-9])f29([^a-z0-9]|$)|formulario\s*29|form\s*29/.test(value)) return 'F29';
+  const value = normalize(document.name);
   if (/(^|[^a-z0-9])iva([^a-z0-9]|$)/.test(value)) return 'IVA';
-  if (/(^|[^a-z0-9])bce([^a-z0-9]|$)|balance\s+de\s+comprobacion/.test(value)) return 'BCE';
   if (/(^|[^a-z0-9])balance([^a-z0-9]|$)/.test(value)) return 'Balance';
   return null;
 }

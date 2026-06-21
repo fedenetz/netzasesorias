@@ -1,12 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { canEditClient, f29WorkflowPriority, filterRecentF29Workbooks, generateHistoryMonths, inferRelevantDocumentType, isF29Workbook, matchesF29Workflow, resolveOperationalAssigneeId } from '../src/admin/operational-utils';
+import { inferDocumentArea, inferOperationalDocumentKind, isBceDocument, isF22Document } from '../src/admin/document-matching';
 
 test('F29 suggestions require a matching month, accounting name and xlsx extension', () => {
   assert.equal(isF29Workbook({ name: 'F29 mayo 2026.xlsx', path: 'Impuestos/2026/05 Mayo' }, 2026, 5), true);
   assert.equal(isF29Workbook({ name: 'Balance mayo 2026.xlsx', path: 'Impuestos/2026/05 Mayo' }, 2026, 5), false);
   assert.equal(isF29Workbook({ name: 'F29 abril 2026.xlsx', path: 'Impuestos/2026/04 Abril' }, 2026, 5), false);
-  assert.equal(isF29Workbook({ name: 'F29 mayo 2026.xls', path: 'Impuestos/2026/05 Mayo' }, 2026, 5), false);
+  assert.equal(isF29Workbook({ name: 'F29 mayo 2026.xls', path: 'Impuestos/F.29/F.29 - 2026/05.2026' }, 2026, 5), true);
+  assert.equal(isF29Workbook({ name: 'F.29 - 05.2026 - Cliente.xlsx', path: 'Impuestos/F.29/F.29 - 2026/05.2026' }, 2026, 5), true);
+  assert.equal(isF29Workbook({ name: 'Resumen F-29 05.26.xlsx', path: 'Impuestos/F.29/F.29 - 2026/05.2026' }, 2026, 5), true);
+  assert.equal(isF29Workbook({ name: 'RCV_COMPRA_REGISTRO_202605.xlsx', path: 'Impuestos/F.29/F.29 - 2026/05.2026' }, 2026, 5), false);
 });
 
 test('quick cache keeps only the last three period workbooks', () => {
@@ -22,6 +26,14 @@ test('quick cache keeps only the last three period workbooks', () => {
 test('profile relevance is inferred from names', () => {
   assert.equal(inferRelevantDocumentType({ name: 'BCE cliente.xlsx' }), 'BCE');
   assert.equal(inferRelevantDocumentType({ name: 'contrato.pdf' }), null);
+  assert.equal(inferOperationalDocumentKind({ name: 'Form.22 AT 2026.pdf' }), 'f22');
+  assert.equal(inferOperationalDocumentKind({ name: 'B.C.E. AT 2026.xlsx' }), 'bce');
+  assert.equal(inferOperationalDocumentKind({ name: 'IVA 05.2026 Cliente.xlsx' }), 'f29');
+  assert.equal(inferOperationalDocumentKind({ name: 'Libro IVA 05.2026 Cliente.xlsx' }), null);
+  assert.equal(isF22Document({ name: 'Formulario 22 AT 2026.pdf', path: 'Impuestos/F.22/2026' }, 2026), true);
+  assert.equal(isBceDocument({ name: 'Balance de comprobación 2026.xlsx', path: 'Renta/2026' }, 2026), true);
+  assert.equal(inferDocumentArea('Impuestos/F.29/F.29 - 2026/05.2026'), 'f29');
+  assert.equal(inferDocumentArea('Impuestos/F.22/2026'), 'f22');
 });
 
 test('history excludes future periods and always contains the current three months', () => {

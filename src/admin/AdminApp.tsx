@@ -21,7 +21,8 @@ import { F29OperationsDashboard } from './f29-operations-ui';
 import { AdminSettings } from './AdminSettings';
 import { ActivityWorkspace, DocumentsWorkspace } from './OperationsScreens';
 import { HelpSystem } from './HelpSystem';
-import { canEditClient, fileExtension, generateHistoryMonths, inferRelevantDocumentType } from './operational-utils';
+import { canEditClient, generateHistoryMonths } from './operational-utils';
+import { inferOperationalDocumentKind } from './document-matching';
 
 export type Screen = 'dashboard' | 'clients' | 'f29' | 'f22' | 'billing' | 'documents' | 'activity' | 'settings' | 'client';
 
@@ -455,7 +456,7 @@ function ClientProfileV2({ client, year, month, reload, role, userId }: { client
   useEffect(() => { setLoading(true); void refresh(); }, [client.id]);
   const openDrive = () => { if (client.driveFolderId) window.open(`https://drive.google.com/drive/folders/${client.driveFolderId}`, '_blank', 'noopener,noreferrer'); };
   const editable = canEditClient(role, userId, client.assignedUserId);
-  if (!editable) return <div className="control-content client-profile-readonly"><div className="client-profile-head"><div className="client-monogram">{client.name.charAt(0)}</div><div><span>Cliente · solo lectura</span><h1>{client.name}</h1><p>{client.rut} · {client.accountant}</p></div><div className="page-actions"><button className="button-ghost" disabled={!client.driveFolderId} onClick={openDrive}><FolderOpen size={16}/>Abrir Drive</button></div></div><div className="read-only-banner"><LockKeyhole size={15}/><span><strong>Ficha en modo consulta</strong><small>Solo el contador responsable puede editar este cliente.</small></span></div>{loading?<div className="control-data-state">Cargando ficha del cliente…</div>:<><ClientSummaryV2 client={client} history={history} year={year} month={month} observations={observations} billing={billingSummary}/><HistoryPanel history={withUpcoming(history)}/></>}</div>;
+  if (!editable) return <div className="control-content client-profile-readonly"><div className="client-profile-head"><div className="client-monogram">{client.name.charAt(0)}</div><div><span>Cliente · solo lectura</span><h1>{client.name}</h1><p>{client.rut} · {client.accountant}</p></div><div className="page-actions"><button className="button-ghost" disabled={!client.driveFolderId} onClick={openDrive}><FolderOpen size={16}/>Abrir Drive</button></div></div><div className="read-only-banner"><LockKeyhole size={15}/><span><strong>Ficha en modo consulta</strong><small>Puedes revisar documentos; solo el contador responsable puede modificarlos.</small></span></div><nav className="profile-tabs"><button className={tab === 'Resumen' ? 'active' : ''} onClick={() => setTab('Resumen')}>Resumen</button><button className={tab === 'Documentos' ? 'active' : ''} onClick={() => setTab('Documentos')}>Documentos <em>{documents.filter(document => !document.isFolder).length}</em></button></nav>{loading?<div className="control-data-state">Cargando ficha del cliente…</div>:tab === 'Documentos'?<DocumentsPanelRecursive client={client} documents={documents} refresh={refresh} readOnly/>:<ClientSummaryV2 client={client} history={history} year={year} month={month} observations={observations} billing={billingSummary}/>}</div>;
   return <div className="control-content"><div className="client-profile-head"><div className="client-monogram">{client.name.charAt(0)}</div><div><span>Cliente activo</span><h1>{client.name}</h1><p>{client.rut} · {client.accountant}</p></div><div className="page-actions"><button className="button-ghost" disabled={!client.periodId} title={!client.periodId ? 'No existe un período F29 para este mes' : ''} onClick={() => setEmailOpen(true)}><Mail size={16} /> Preparar F29 Email</button><button className="button-ghost" disabled={!client.driveFolderId} onClick={openDrive}><FolderOpen size={16} />{client.driveFolderId ? 'Abrir Drive' : 'Sin carpeta Drive'}</button><button className="button-dark" onClick={() => setEditing(true)}>Editar cliente</button></div></div><nav className="profile-tabs">{(['Resumen', 'F29 mensual', 'Renta / F22', 'Documentos', 'Contactos', 'Observaciones', 'Actividad'] as ProfileTab[]).map(item => <button className={tab === item ? 'active' : ''} onClick={() => setTab(item)} key={item}>{item}{item === 'Documentos' && <em>{documents.filter(document => !document.isFolder).length}</em>}</button>)}</nav>{loadError && <div className="control-data-state is-error"><AlertTriangle size={16} />{loadError}</div>}{loading ? <div className="control-data-state">Cargando ficha del cliente…</div> : tab === 'Resumen' ? <ClientSummaryV2 client={client} history={history} year={year} month={month} observations={observations} billing={billingSummary} /> : tab === 'F29 mensual' ? <HistoryPanel history={withUpcoming(history)} /> : tab === 'Renta / F22' ? <ClientF22Panel clientId={client.id} taxYear={2026} /> : tab === 'Documentos' ? <DocumentsPanelRecursive client={client} documents={documents} refresh={refresh} /> : tab === 'Contactos' ? <ClientContactsPanel clientId={client.id} /> : tab === 'Observaciones' ? <ObservationsPanel client={client} observations={observations} refresh={refresh} /> : <ActivityPanelV2 client={client} activity={activity} />}{editing && <ClientEditor client={client} onClose={() => setEditing(false)} onSaved={async () => { setEditing(false); await reload(); }} />}{emailOpen && <EmailComposer row={client} onClose={() => setEmailOpen(false)} onSent={reload} />}</div>;
 }
 
@@ -497,7 +498,7 @@ function DocumentsPanel({ client, documents, refresh }: { client: ClientRow; doc
   return <section className="operations-card documents-panel"><div className="documents-head"><div><h2>Documentos en Google Drive</h2><p>{client.driveFolderId ? 'Archivos sincronizados con el acceso Google del empleado.' : 'Agrega un ID de carpeta Drive para habilitar la sincronización.'}</p>{message && <small className={`operation-message ${needsDriveAuthorization ? 'is-warning' : ''}`}>{message}</small>}</div>{needsDriveAuthorization ? <button className="button-dark" onClick={() => void connectGoogleDrive()}><ShieldCheck size={16} /> Autorizar Google Drive</button> : <button className="button-dark" disabled={scanning || !client.driveFolderId} onClick={() => void scan()}><Cloud size={16} />{scanning ? 'Escaneando…' : 'Escanear carpeta'}</button>}</div><div className="table-scroll"><table className="ops-table"><thead><tr><th>Archivo</th><th>Tipo</th><th>Modificado</th><th>Estado</th><th /></tr></thead><tbody>{documents.map(doc => <tr key={doc.id}><td><span className="file-name"><FileSpreadsheet size={18} /><span><strong>{doc.name}</strong><small>{doc.mimeType ?? 'Tipo desconocido'}</small></span></span></td><td><select className="inline-select" value={doc.type} onChange={event => void classify(doc, event.target.value as DocumentKind)}>{(Object.keys(DOCUMENT_LABELS) as DocumentKind[]).map(type => <option key={type} value={type}>{DOCUMENT_LABELS[type]}</option>)}</select></td><td>{doc.modifiedAt ? dateTime(doc.modifiedAt) : '—'}</td><td><Pill value={doc.processingStatus === 'classified' ? 'Listo' : 'Pendiente'}>{doc.processingStatus === 'classified' ? 'Clasificado' : 'Sin clasificar'}</Pill></td><td>{doc.driveUrl && <a className="drive-button" href={doc.driveUrl} target="_blank" rel="noreferrer">Abrir en Drive <ExternalLink size={13} /></a>}</td></tr>)}</tbody></table>{!documents.length && <div className="empty-table">Todavía no hay documentos sincronizados.</div>}</div></section>;
 }
 
-function DocumentsPanelRecursive({ client, documents, refresh }: { client: ClientRow; documents: ClientDocument[]; refresh: () => Promise<void> }) {
+function DocumentsPanelRecursive({ client, documents, refresh, readOnly = false }: { client: ClientRow; documents: ClientDocument[]; refresh: () => Promise<void>; readOnly?: boolean }) {
   const [scanning, setScanning] = useState(false);
   const [message, setMessage] = useState('');
   const [needsDriveAuthorization, setNeedsDriveAuthorization] = useState(false);
@@ -508,7 +509,7 @@ function DocumentsPanelRecursive({ client, documents, refresh }: { client: Clien
   const pageSize = 100;
   const filtered = useMemo(() => documents.filter(document =>
     (showFolders || !document.isFolder) &&
-    (document.isFolder || Boolean(inferRelevantDocumentType({ name: document.name, path: document.drivePath, mimeType: document.mimeType }))) &&
+    (document.isFolder || Boolean(inferOperationalDocumentKind({ name: document.name, path: document.drivePath, mimeType: document.mimeType }))) &&
     (moduleFilter === 'all' || document.module === moduleFilter) &&
     `${document.name} ${document.drivePath}`.toLowerCase().includes(query.trim().toLowerCase())
   ), [documents, moduleFilter, query, showFolders]);
@@ -518,6 +519,7 @@ function DocumentsPanelRecursive({ client, documents, refresh }: { client: Clien
   const fileCount = documents.filter(document => !document.isFolder).length;
   const folderCount = documents.length - fileCount;
   const scan = async () => {
+    if (readOnly) return;
     setScanning(true); setMessage(''); setNeedsDriveAuthorization(false);
     try {
       const result = await scanClientDrive(client.id);
@@ -529,6 +531,7 @@ function DocumentsPanelRecursive({ client, documents, refresh }: { client: Clien
     } finally { setScanning(false); }
   };
   const classify = async (document: ClientDocument, type: DocumentKind) => {
+    if (readOnly) return;
     setMessage('Guardando clasificación…');
     try { await classifyDocument(document.id, type); await refresh(); setMessage('Clasificación guardada.'); }
     catch (error) { setMessage(error instanceof Error ? error.message : 'No fue posible clasificar el documento.'); }

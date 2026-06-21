@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { F29_STATUS_LABELS, type ClientRow, type F29StatusCode } from './types';
-import { isF29Workbook, resolveOperationalAssigneeId } from './operational-utils';
+import { resolveOperationalAssigneeId } from './operational-utils';
+import { compareF29Documents, isF29Workbook } from './document-matching';
 
 type ClientRecord = {
   id: string;
@@ -85,8 +86,16 @@ export async function loadAdminRows(year: number, month: number, includeAdminObs
   const profileRows = (profilesResult.data ?? []).map(profile => ({ id: profile.id, fullName: profile.full_name, email: profile.email ?? '' }));
   const profiles = new Map(profileRows.map(profile => [profile.id, { name: profile.fullName ?? 'Sin asignar', email: profile.email }]));
   const documentCounts = (documentsResult.data ?? []).filter(document => document.mime_type !== 'application/vnd.google-apps.folder').reduce((counts, document) => counts.set(document.client_id, (counts.get(document.client_id) ?? 0) + 1), new Map<string, number>());
-  const periodDocuments = new Map<string, { id: string; name: string; url: string | null }>();
-  for (const document of documentsResult.data ?? []) if (isPeriodExcel(document, year, month) && !periodDocuments.has(document.client_id)) periodDocuments.set(document.client_id, { id: document.id, name: document.file_name, url: document.drive_web_view_link });
+  const periodDocuments = new Map<string, { id: string; name: string; url: string | null; mimeType: string | null; path: string }>();
+  for (const document of documentsResult.data ?? []) {
+    if (!isPeriodExcel(document, year, month)) continue;
+    const path = String((document.drive_metadata as Record<string, unknown> | null)?.path ?? '');
+    const candidate = { name: document.file_name, path, mimeType: document.mime_type };
+    const current = periodDocuments.get(document.client_id);
+    if (!current || compareF29Documents(candidate, { name: current.name, path: current.path, mimeType: current.mimeType }, year, month) < 0) {
+      periodDocuments.set(document.client_id, { id: document.id, name: document.file_name, url: document.drive_web_view_link, mimeType: document.mime_type, path });
+    }
+  }
 
   return (clientsResult.data as ClientRecord[]).map(client => {
     const period = periods.get(client.id);
@@ -136,7 +145,7 @@ export async function loadAdminRows(year: number, month: number, includeAdminObs
       taxPaymentDueDate: period?.tax_payment_due_date ?? null,
       documents: documentCounts.get(client.id) ?? 0,
       lastDriveScanAt: client.last_drive_scan_at,
-      f29Document: periodDocuments.get(client.id) ?? null,
+      f29Document: periodDocuments.has(client.id) ? (() => { const document = periodDocuments.get(client.id)!; return { id: document.id, name: document.name, url: document.url }; })() : null,
       taxRegime: client.tax_regime ?? '',
       legalType: client.legal_type ?? '',
       legalRepresentativeEmail: client.legal_representative_email ?? '',

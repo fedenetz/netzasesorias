@@ -4,7 +4,7 @@ import { renderNetzEmail } from '../shared/email-template';
 import { loadClientDocuments } from './client-api';
 import { driveAttachment, loadClientContacts, loadEmailTemplate, loadLastEmailRecipients, loadStoredAttachments, resolveEmployeeDirectoryEmail, sendF29Email, sendF29PaymentReminder, uploadEmailAttachment } from './communication-api';
 import type { ClientDocument, ClientRow, EmailAttachment } from './types';
-import { isF29Workbook } from './operational-utils';
+import { compareF29Documents, isF29Workbook } from './document-matching';
 
 const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const money = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
@@ -12,16 +12,10 @@ const displayDate = (value: string | null) => value ? new Intl.DateTimeFormat('e
 const interpolate = (value: string, vars: Record<string,string>) => value.replace(/{{\s*([a-z0-9_]+)\s*}}/gi, (_, key) => vars[key] ?? '—');
 const safeHtml = (value: string) => value.replace(/<\s*(script|style|iframe)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '').replace(/\son\w+\s*=\s*("[^"]*"|'[^']*')/gi, '');
 const addresses = (value: string) => [...new Set(value.split(/[;,]/).map(item => item.trim().toLowerCase()).filter(Boolean))];
-const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\\/g, '/');
 const formatSize = (size?: number) => size ? size < 1024 * 1024 ? `${Math.max(1, Math.round(size / 1024))} KB` : `${(size / 1024 / 1024).toFixed(1)} MB` : 'Tamaño disponible al cargar';
 const typeLabel = (item: EmailAttachment) => item.mimeType?.startsWith('image/') ? 'Imagen · comprobante visual' : item.mimeType === 'application/vnd.google-apps.spreadsheet' ? 'Google Sheets · se exportará a Excel' : item.mimeType?.includes('pdf') ? 'Documento PDF' : item.mimeType?.includes('sheet') || /\.xlsx?$/i.test(item.fileName) ? 'Planilla Excel' : item.mimeType || 'Documento adjunto';
 const sourceLabel = (item: EmailAttachment) => item.mimeType?.startsWith('image/') ? 'Comprobante visual · se muestra en el correo y se adjunta' : item.source === 'drive' ? (item.mimeType === 'application/vnd.google-apps.spreadsheet' ? 'Exportado desde Google Drive · Excel' : 'Archivo de Google Drive') : 'Archivo privado adjunto';
 const sameAttachment = (left: EmailAttachment, right: EmailAttachment) => Boolean((left.id && left.id === right.id) || (left.documentId && left.documentId === right.documentId));
-
-function belongsToPeriod(document: ClientDocument, row: ClientRow) {
-  const path = normalize(document.drivePath); const mm = String(row.month).padStart(2, '0'); const month = normalize(months[row.month - 1]);
-  return path.includes(`/f29/${row.year}/${mm}`) || path.includes(`/f29/${row.year}/${row.month}`) || path.includes(`/impuestos/${row.year}/${mm}`) || (path.includes(`/impuestos/${row.year}/`) && path.includes(month));
-}
 
 function suggestedDocument(document: ClientDocument, row: ClientRow) {
   return isF29Workbook({ name: document.name, path: document.drivePath, mimeType: document.mimeType, isFolder: document.isFolder }, row.year, row.month);
@@ -48,10 +42,16 @@ export function F29MailComposer({ row, mode = 'summary', onClose, onSent }: { ro
   useEffect(() => { void (async () => { try {
     const [contacts, template, last, docs, uploads, resolvedResponsible] = await Promise.all([loadClientContacts(row.id), loadEmailTemplate(isReminder ? 'f29_payment_reminder' : 'f29_monthly_summary'), loadLastEmailRecipients(row.id, isReminder ? 'f29_payment_reminder' : 'f29_summary'), previewMode ? Promise.resolve([]) : loadClientDocuments(row.id), row.periodId ? loadStoredAttachments(row.periodId) : Promise.resolve([]), row.accountantEmail ? Promise.resolve(row.accountantEmail) : resolveEmployeeDirectoryEmail(row.accountant)]);
     const contactEmails = contacts.filter(item => item.isActive && item.isBilling).map(item => item.email);
-    setLastRecipients(last); setTo((contactEmails.length ? contactEmails : last).join(', ')); setResponsibleEmail(resolvedResponsible); setSubject(template.subject); setBody(template.bodyHtml); setDocuments(docs.filter(item => !item.isFolder && item.module === 'f29')); setStored(uploads);
+    setLastRecipients(last); setTo((contactEmails.length ? contactEmails : last).join(', ')); setResponsibleEmail(resolvedResponsible); setSubject(template.subject); setBody(template.bodyHtml); setDocuments(docs.filter(item => !item.isFolder)); setStored(uploads);
   } catch (reason) { setError(reason instanceof Error ? reason.message : 'No fue posible preparar el correo.'); } finally { setLoading(false); } })(); }, [row.id, row.periodId, row.accountant, row.accountantEmail, isReminder, previewMode]);
 
-  const exactFolder = documents.filter(document => belongsToPeriod(document, row)); const periodDocuments = exactFolder.filter(document => suggestedDocument(document, row));
+  const periodDocuments = documents.filter(document => suggestedDocument(document, row)).sort((left, right) => compareF29Documents(
+    { name: left.name, path: left.drivePath, mimeType: left.mimeType, modifiedAt: left.modifiedAt },
+    { name: right.name, path: right.drivePath, mimeType: right.mimeType, modifiedAt: right.modifiedAt },
+    row.year,
+    row.month,
+  ));
+  const exactFolder = periodDocuments;
   const suggestedIds = new Set(periodDocuments.filter(document => suggestedDocument(document,row)).map(document => document.id));
   const toggle = (attachment: EmailAttachment) => setSelected(current => current.some(item => sameAttachment(item, attachment)) ? current.filter(item => !sameAttachment(item, attachment)) : [...current, attachment]);
   const remove = (attachment: EmailAttachment) => setSelected(current => current.filter(item => !sameAttachment(item, attachment)));

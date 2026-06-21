@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import type { ActivityEntry, ClientBillingSummary, ClientDocument, ClientObservation, ClientRow, DocumentKind } from './types';
-import { isF29Workbook } from './operational-utils';
+import { compareF29Documents, inferDocumentArea, inferOperationalDocumentKind, isF29Workbook } from './document-matching';
 
 const profileName = (value: unknown) => Array.isArray(value) ? String(value[0]?.full_name ?? 'Sistema') : String((value as { full_name?: string } | null)?.full_name ?? 'Sistema');
 
@@ -17,8 +17,11 @@ export async function loadClientDocuments(clientId: string): Promise<ClientDocum
   if (error) throw error;
   return (data ?? []).map(doc => {
     const metadata = doc.drive_metadata && typeof doc.drive_metadata === 'object' && !Array.isArray(doc.drive_metadata) ? doc.drive_metadata as Record<string, unknown> : {};
-    const module = metadata.module === 'f29' || metadata.module === 'f22' ? metadata.module : 'other';
-    return { id: doc.id, driveFileId: doc.drive_file_id, driveUrl: doc.drive_web_view_link, name: doc.file_name, mimeType: doc.mime_type, type: doc.document_type, inferredType: doc.inferred_document_type, classificationSource: doc.classification_source, processingStatus: doc.processing_status, modifiedAt: doc.modified_at, drivePath: String(metadata.path ?? doc.file_name), depth: Number(metadata.depth ?? 1), module, isFolder: doc.mime_type === 'application/vnd.google-apps.folder' };
+    const path = String(metadata.path ?? doc.file_name);
+    const module = inferDocumentArea(path);
+    const inferredType = inferOperationalDocumentKind({ name: doc.file_name, path, mimeType: doc.mime_type }) ?? doc.inferred_document_type;
+    const type = doc.classification_source === 'manual' ? doc.document_type : inferredType ?? doc.document_type;
+    return { id: doc.id, driveFileId: doc.drive_file_id, driveUrl: doc.drive_web_view_link, name: doc.file_name, mimeType: doc.mime_type, type, inferredType, classificationSource: doc.classification_source, processingStatus: doc.processing_status, modifiedAt: doc.modified_at, drivePath: path, depth: Number(metadata.depth ?? 1), module, isFolder: doc.mime_type === 'application/vnd.google-apps.folder' };
   });
 }
 
@@ -73,7 +76,14 @@ export async function uploadF29Excel(clientId: string, year: number, month: numb
 
 export async function loadF29PeriodDocument(clientId: string, year: number, month: number) {
   const documents = await loadClientDocuments(clientId);
-  const document = documents.find(item => isF29Workbook({ name: item.name, path: item.drivePath, mimeType: item.mimeType, isFolder: item.isFolder }, year, month));
+  const document = documents
+    .filter(item => isF29Workbook({ name: item.name, path: item.drivePath, mimeType: item.mimeType, modifiedAt: item.modifiedAt, isFolder: item.isFolder }, year, month))
+    .sort((left, right) => compareF29Documents(
+      { name: left.name, path: left.drivePath, mimeType: left.mimeType, modifiedAt: left.modifiedAt, isFolder: left.isFolder },
+      { name: right.name, path: right.drivePath, mimeType: right.mimeType, modifiedAt: right.modifiedAt, isFolder: right.isFolder },
+      year,
+      month,
+    ))[0];
   return document ? { id: document.id, name: document.name, url: document.driveUrl } : null;
 }
 

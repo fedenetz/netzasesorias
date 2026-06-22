@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Layout } from './components/Layout.jsx';
 import { SEO } from './components/SEO.jsx';
 import { ContactPage } from './pages/ContactPage.jsx';
@@ -10,7 +11,12 @@ import { ServiceDetailPage } from './pages/ServiceDetailPage.jsx';
 import { ServiciosPage } from './pages/ServiciosPage.jsx';
 import { seo } from './data/seo.js';
 import { getServiceBySlug } from './data/services.js';
-import { AdminGate } from './admin/AdminGate.tsx';
+
+const AdminGate = lazy(() => import('./admin/AdminGate.tsx').then(module => ({ default: module.AdminGate })));
+
+function AdminShell() {
+  return <Suspense fallback={<main className="admin-loading-shell" aria-busy="true">Cargando Netz Control…</main>}><AdminGate /></Suspense>;
+}
 
 const routes = {
   '/': { page: <HomePage />, seo: seo.home },
@@ -48,11 +54,11 @@ export default function App() {
 
   if (path === '/admin') {
     window.history.replaceState({}, '', '/control');
-    return <AdminGate />;
+    return <AdminShell />;
   }
 
   if (path.startsWith('/control') || path.startsWith('/f29/') || path.startsWith('/f22/') || path === '/billing' || path === '/clients' || path.startsWith('/clients/') || path === '/documents' || path === '/activity' || path === '/settings') {
-    return <AdminGate />;
+    return <AdminShell />;
   }
 
   const current = getRoute();

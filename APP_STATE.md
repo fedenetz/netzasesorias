@@ -83,6 +83,7 @@ La aplicación evolucionó desde un control interno F29/F22 hacia una base de ge
 - El Resumen mantiene superficies, anillo de progreso, leyendas, bordes y textos secundarios con contraste consistente en dark mode.
 - El control de densidad de la barra superior abre un selector explícito Compacta/Cómoda y ajusta tablas y tarjetas móviles.
 - Dark mode fue auditado transversalmente en Resumen, Clientes, F29, F22, Facturación, Documentos, Actividad y Configuración, incluidos modales y estados móviles.
+- Los controles residuales del modo oscuro (acciones de adjuntos, destinatarios recientes, paginación, selector de plan, checkboxes, badges y estados deshabilitados) usan superficies oscuras y contraste consistente.
 - Facturación y métricas F29 redistribuyen su espacio en móvil/anchos estrechos; los errores internos ya no reservan una pantalla completa.
 - Los responsables usan color solamente en el avatar. La cartera omite las columnas Documentos y acción redundante, conservando esos datos en filtros e inspector.
 
@@ -103,7 +104,6 @@ La aplicación evolucionó desde un control interno F29/F22 hacia una base de ge
 - Validar al menos un envío programado completo en el deploy real.
 - Validar en producción un envío F29 con Google Sheets/Excel y otro con imagen privada, comprobando el CID en Gmail/Outlook y el adjunto original. El entorno local no dispone de sesión Drive, storage privado ni Resend.
 - Validar en producción una cobranza con enlace de pago activo; la vista local no contiene filas del ledger.
-- División del bundle frontend; actualmente existe una advertencia no bloqueante sobre un chunk superior a 500 kB.
 - La recarga/subida enfocada requiere un escaneo previo del árbol Drive para localizar la carpeta exacta del período.
 
 ## Seguridad vigente
@@ -126,9 +126,10 @@ Estado de producción confirmado por el usuario el 22 de junio de 2026: todas la
 - `20260626_accountant_f29_assignment.sql`: alinea RLS F29 con el nombre operativo vinculado al perfil/safelist del contador.
 - `20260627_f29_monthly_workflow.sql`: formaliza revisión, pago, inicialización mensual, metadatos de entrega e idempotencia de avisos F29.
 
-## Verificación más reciente (21 de junio de 2026)
+## Verificación más reciente (22 de junio de 2026)
 
 - `npx tsc --noEmit` sin errores (ejecutado como `npx.cmd` en Windows).
-- Build Vite de producción exitoso; persiste la advertencia no bloqueante del chunk superior a 500 kB.
-- 27 pruebas automatizadas exitosas, incluidas la resolución de responsables F29 y la semántica de trabajo pendiente.
+- Build Vite de producción exitoso. La carga administrativa es diferida y el bundle queda dividido en chunks inferiores a 500 kB, sin la advertencia anterior.
+- 29 pruebas automatizadas exitosas, incluidas la resolución de responsables F29, la semántica de trabajo pendiente y los filtros del flujo formal/documentos recientes.
+- `verify:production` exitoso el 22 de junio de 2026: configuración requerida, RLS, RPCs, enums, grants, tablas, columnas, storage privado, policies, triggers y migraciones validados contra producción.
 - Auditoría visual en 8 rutas, desktop, móvil y ancho intermedio: sin desbordamiento horizontal, superficies dark consistentes, sidebar plegable, Facturación responsive y compositor F29 ampliado.

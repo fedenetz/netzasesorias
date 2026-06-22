@@ -13,7 +13,7 @@ export class DriveAuthorizationError extends Error {
 
 export async function loadClientDocuments(clientId: string): Promise<ClientDocument[]> {
   if (!supabase) return [];
-  const { data, error } = await supabase.from('documents').select('id,drive_file_id,drive_web_view_link,file_name,mime_type,document_type,inferred_document_type,classification_source,processing_status,modified_at,drive_metadata').eq('client_id', clientId).order('modified_at', { ascending: false });
+  const { data, error } = await supabase.from('documents').select('id,drive_file_id,drive_web_view_link,file_name,mime_type,document_type,inferred_document_type,classification_source,processing_status,modified_at,scanned_at,drive_metadata').eq('client_id', clientId).order('modified_at', { ascending: false });
   if (error) throw error;
   return (data ?? []).map(doc => {
     const metadata = doc.drive_metadata && typeof doc.drive_metadata === 'object' && !Array.isArray(doc.drive_metadata) ? doc.drive_metadata as Record<string, unknown> : {};
@@ -21,7 +21,7 @@ export async function loadClientDocuments(clientId: string): Promise<ClientDocum
     const module = inferDocumentArea(path);
     const inferredType = inferOperationalDocumentKind({ name: doc.file_name, path, mimeType: doc.mime_type }) ?? doc.inferred_document_type;
     const type = doc.classification_source === 'manual' ? doc.document_type : inferredType ?? doc.document_type;
-    return { id: doc.id, driveFileId: doc.drive_file_id, driveUrl: doc.drive_web_view_link, name: doc.file_name, mimeType: doc.mime_type, type, inferredType, classificationSource: doc.classification_source, processingStatus: doc.processing_status, modifiedAt: doc.modified_at, drivePath: path, depth: Number(metadata.depth ?? 1), module, isFolder: doc.mime_type === 'application/vnd.google-apps.folder' };
+    return { id: doc.id, driveFileId: doc.drive_file_id, driveUrl: doc.drive_web_view_link, name: doc.file_name, mimeType: doc.mime_type, type, inferredType, classificationSource: doc.classification_source, processingStatus: doc.processing_status, modifiedAt: doc.modified_at, indexedAt: doc.scanned_at, drivePath: path, depth: Number(metadata.depth ?? 1), module, isFolder: doc.mime_type === 'application/vnd.google-apps.folder' };
   });
 }
 
@@ -72,6 +72,12 @@ export async function uploadF29Excel(clientId: string, year: number, month: numb
   if (result.code === 'drive_reauth_required') throw new DriveAuthorizationError(result.error);
   if (!response.ok) throw new Error(result.error ?? 'No fue posible subir el Excel a Drive.');
   return result as { document: { id: string; name: string; url: string | null } };
+}
+
+export async function markF29Payment(periodId: string, paid: boolean) {
+  if (!supabase) throw new Error('Supabase no estÃ¡ configurado.');
+  const { error } = await supabase.rpc('mark_f29_tax_payment', { p_f29_period_id: periodId, p_paid: paid });
+  if (error) throw error;
 }
 
 export async function loadF29PeriodDocument(clientId: string, year: number, month: number) {

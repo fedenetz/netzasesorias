@@ -1,6 +1,6 @@
 # Estado actual de Netz Control
 
-Fecha de corte: 21 de junio de 2026.
+Fecha de corte: 22 de junio de 2026.
 
 ## Estado general
 
@@ -25,6 +25,7 @@ La aplicación evolucionó desde un control interno F29/F22 hacia una base de ge
 - Recarga por cliente con cantidad, fecha de revisión y sugerencia solo si está pendiente o tiene más de 24 horas.
 - Clasificación inferida por nombre, extensión y ruta, con override manual distinguido y auditado.
 - Ficha administrativa editable: régimen, tipo jurídico, representante, actividad, dirección, teléfono, banco, cuenta y contabilidad.
+- La ficha documental abre en archivos relevantes de los últimos tres meses, agrupados por F29, Renta, comprobantes, legales, cobranza y otros; incluye filtros, módulo, fecha de indexación y marca de clasificación manual.
 
 ### F29
 
@@ -37,6 +38,10 @@ La aplicación evolucionó desde un control interno F29/F22 hacia una base de ge
 - La carpeta mensual F29 es fuente autoritativa para asociar Excel aunque el nombre use solamente la razón social; el primer hallazgo o subida crea/clasifica el período como `Cargada`, deja auditoría y conserva controles de reindexación/corrección.
 - Historial con próximos dos meses en prioridad visual baja, sin tratarlos como alertas.
 - Las cuentas `accountant` ven y operan solamente los F29 vinculados a su identidad. La asignación resuelve primero `responsible_user_id`, luego el nombre operativo de `responsible_name` contra el perfil/safelist y finalmente `clients.assigned_user_id`.
+- El mes se inicializa mediante RPC idempotente para los clientes F29 activos visibles al operador; la unicidad cliente/año/mes evita duplicados.
+- Asociar un Excel deja el período en `Cargada`, solicita revisión administrativa y envía una sola notificación interna a control antes de contactar al cliente.
+- El envío exitoso al cliente deja el período `Informada` y el pago pendiente; el pago se confirma manualmente mediante RPC auditada.
+- Un job diario recuerda automáticamente los F29 informados e impagos un día antes del vencimiento, con idempotencia por período.
 - El flujo mensual F29 abre en `Pendientes`: todo período clasificado y aún no pagado. `Sin movimiento` y `Sin estado` quedan ocultos por defecto, con filtros explícitos; el contador responsable debe clasificar los períodos sin estado.
 
 ### Email F29
@@ -95,7 +100,6 @@ La aplicación evolucionó desde un control interno F29/F22 hacia una base de ge
 - Recordatorios automáticos sin confirmación humana.
 - Backfill histórico automático de honorarios.
 - Calendario de feriados posteriores a 2027.
-- Confirmar en producción que todas las migraciones hasta `20260622` estén aplicadas.
 - Validar al menos un envío programado completo en el deploy real.
 - Validar en producción un envío F29 con Google Sheets/Excel y otro con imagen privada, comprobando el CID en Gmail/Outlook y el adjunto original. El entorno local no dispone de sesión Drive, storage privado ni Resend.
 - Validar en producción una cobranza con enlace de pago activo; la vista local no contiene filas del ledger.
@@ -114,10 +118,13 @@ La aplicación evolucionó desde un control interno F29/F22 hacia una base de ge
 
 ## Migraciones nuevas
 
+Estado de producción confirmado por el usuario el 22 de junio de 2026: todas las migraciones hasta `20260627_f29_monthly_workflow.sql` están aplicadas.
+
 - `20260623_operational_usability.sql`: metadata administrativa, fecha de escaneo Drive, procedencia/tipos documentales y metadata de plan/suscripción.
 - `20260624_security_production_baseline.sql`: baseline de seguridad, permisos y diagnóstico de producción.
 - `20260625_transversal_quality.sql`: permisos de mutación limitados al cliente asignado.
 - `20260626_accountant_f29_assignment.sql`: alinea RLS F29 con el nombre operativo vinculado al perfil/safelist del contador.
+- `20260627_f29_monthly_workflow.sql`: formaliza revisión, pago, inicialización mensual, metadatos de entrega e idempotencia de avisos F29.
 
 ## Verificación más reciente (21 de junio de 2026)
 

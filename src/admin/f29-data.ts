@@ -42,6 +42,8 @@ type PeriodRecord = {
   observation: string | null;
   email_status: import('./types').EmailStatus;
   sent_at: string | null;
+  review_status: 'none' | 'pending_admin_review' | 'approved' | 'rejected';
+  payment_status: 'not_required' | 'pending' | 'paid';
   billing_status: import('./types').BillingStatus;
   billing_amount: number | string | null;
   billing_due_date: string | null;
@@ -66,11 +68,13 @@ const isPeriodExcel = (document: { file_name: string; mime_type: string | null; 
 
 export async function loadAdminRows(year: number, month: number, includeAdminObservation = false): Promise<ClientRow[]> {
   if (!supabase) return [];
+  const { error: initializeError } = await supabase.rpc('initialize_f29_month', { p_year: year, p_month: month });
+  if (initializeError) throw initializeError;
   const previousMonth = month === 1 ? 12 : month - 1;
   const previousYear = month === 1 ? year - 1 : year;
   const [clientsResult, periodsResult, previousPeriodsResult, profilesResult, documentsResult] = await Promise.all([
     supabase.from('clients').select('id,rut,legal_name,accounting_code,has_credentials,drive_folder_id,is_active,f29_enabled,f22_enabled,assigned_user_id,tax_regime,legal_type,legal_representative_email,economic_activity,address,phone,bank_name,checking_account,accounting_type,last_drive_scan_at,updated_at').eq('is_active', true).order('legal_name'),
-    supabase.from('f29_periods').select('id,client_id,year,month,amount,filed_date,status_code,status_label,due_day,responsible_user_id,responsible_name,observation,email_status,sent_at,billing_status,billing_amount,billing_due_date,paid_at,payment_method,payment_notes,tax_paid,tax_paid_at,last_payment_reminder_at,tax_payment_due_date,updated_at').eq('year', year).eq('month', month),
+    supabase.from('f29_periods').select('id,client_id,year,month,amount,filed_date,status_code,status_label,due_day,responsible_user_id,responsible_name,observation,email_status,sent_at,review_status,payment_status,billing_status,billing_amount,billing_due_date,paid_at,payment_method,payment_notes,tax_paid,tax_paid_at,last_payment_reminder_at,tax_payment_due_date,updated_at').eq('year', year).eq('month', month),
     supabase.from('f29_periods').select('client_id,amount').eq('year', previousYear).eq('month', previousMonth),
     supabase.from('profiles').select('id,full_name,email').eq('is_active', true),
     supabase.from('documents').select('id,client_id,file_name,mime_type,drive_web_view_link,drive_metadata'),
@@ -133,6 +137,8 @@ export async function loadAdminRows(year: number, month: number, includeAdminObs
       observation: period?.observation ?? '',
       emailStatus: period?.email_status ?? 'not_sent',
       emailSentAt: period?.sent_at ?? null,
+      reviewStatus: period?.review_status ?? 'none',
+      paymentStatus: period?.payment_status ?? 'not_required',
       billingStatus: period?.billing_status ?? 'not_applicable',
       billingAmount: period?.billing_amount === null || period?.billing_amount === undefined ? null : Number(period.billing_amount),
       billingDueDate: period?.billing_due_date ?? null,

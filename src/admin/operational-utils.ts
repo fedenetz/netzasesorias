@@ -63,19 +63,41 @@ export function canEditClient(role: OperationalRole, userId: string | null | und
   return role === 'admin' || (role === 'accountant' && Boolean(userId) && userId === assignedUserId);
 }
 
-export type F29WorkflowFilter = 'pending' | 'loaded' | 'informed' | 'paid' | 'missing' | 'issues' | 'postponed' | 'no_movement' | 'all';
-type F29WorkflowRow = { periodId?: string; statusCode: string | null; taxPaid?: boolean };
+export type F29WorkflowFilter = 'pending' | 'review' | 'informed_unpaid' | 'overdue' | 'loaded' | 'informed' | 'paid' | 'missing' | 'issues' | 'postponed' | 'no_movement' | 'all';
+type F29WorkflowRow = { periodId?: string; statusCode: string | null; taxPaid?: boolean; reviewStatus?: string; taxPaymentDueDate?: string | null };
 
 export function matchesF29Workflow(row: F29WorkflowRow, filter: F29WorkflowFilter) {
   if (filter === 'all') return true;
   if (filter === 'pending') return Boolean(row.periodId) && row.statusCode !== null && !['D', 'F'].includes(row.statusCode) && !row.taxPaid;
   if (filter === 'loaded') return row.statusCode === 'A';
+  if (filter === 'review') return row.reviewStatus === 'pending_admin_review';
+  if (filter === 'informed_unpaid') return row.statusCode === 'C' && !row.taxPaid;
+  if (filter === 'overdue') return !row.taxPaid && Boolean(row.taxPaymentDueDate && row.taxPaymentDueDate < new Date().toISOString().slice(0, 10));
   if (filter === 'informed') return row.statusCode === 'C';
   if (filter === 'paid') return row.statusCode === 'D' || Boolean(row.taxPaid);
   if (filter === 'missing') return !row.periodId || row.statusCode === null;
   if (filter === 'issues') return row.statusCode === 'B' || row.statusCode === 'H';
   if (filter === 'postponed') return row.statusCode === 'G';
   return row.statusCode === 'F';
+}
+
+export type DocumentGroup = 'F29 mensual' | 'F22 / Renta' | 'Comprobantes' | 'Contratos / legales' | 'Cobranza / pagos' | 'Otros documentos';
+export function documentGroup(document: { type: string; module: string; name: string; path?: string }): DocumentGroup {
+  if (document.type === 'f29' || document.module === 'f29') return 'F29 mensual';
+  if (['f22', 'bce', 'dj_1948', 'dj_1949'].includes(document.type) || document.module === 'f22') return 'F22 / Renta';
+  if (document.type === 'receipt') return 'Comprobantes';
+  if (['contract', 'certificate'].includes(document.type)) return 'Contratos / legales';
+  if (/cobran|pago|factur|honorario/i.test(`${document.name} ${document.path ?? ''}`)) return 'Cobranza / pagos';
+  return 'Otros documentos';
+}
+
+export function isRecentRelevantDocument(document: { type: string; module: string; name: string; path?: string; modifiedAt?: string | null; isFolder?: boolean }, now = new Date()) {
+  if (document.isFolder) return false;
+  const relevant = documentGroup(document) !== 'Otros documentos';
+  if (!relevant) return false;
+  if (!document.modifiedAt) return true;
+  const cutoff = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+  return new Date(document.modifiedAt) >= cutoff;
 }
 
 export function f29WorkflowPriority(row: F29WorkflowRow) {

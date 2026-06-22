@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { canEditClient, f29WorkflowPriority, filterRecentF29Workbooks, generateHistoryMonths, inferRelevantDocumentType, isF29Workbook, matchesF29Workflow, resolveOperationalAssigneeId } from '../src/admin/operational-utils';
+import { canEditClient, documentGroup, f29WorkflowPriority, filterRecentF29Workbooks, generateHistoryMonths, inferRelevantDocumentType, isF29Workbook, isRecentRelevantDocument, matchesF29Workflow, resolveOperationalAssigneeId } from '../src/admin/operational-utils';
 import { inferDocumentArea, inferOperationalDocumentKind, isBceDocument, isF22Document } from '../src/admin/document-matching';
 
 test('F29 suggestions require a matching month, accounting name and xlsx extension', () => {
@@ -75,4 +75,23 @@ test('F29 workflow treats every classified unpaid period as pending work', () =>
   assert.equal(matchesF29Workflow(paid, 'pending'), false);
   assert.equal(matchesF29Workflow(noMovement, 'pending'), false);
   assert.ok(f29WorkflowPriority(missing) < f29WorkflowPriority(pending));
+});
+
+test('formal F29 workflow filters review, informed unpaid and overdue rows', () => {
+  const review = { periodId: 'p1', statusCode: 'A', reviewStatus: 'pending_admin_review', taxPaid: false };
+  const informed = { periodId: 'p2', statusCode: 'C', reviewStatus: 'approved', taxPaid: false };
+  const overdue = { ...informed, taxPaymentDueDate: '2020-01-01' };
+  assert.equal(matchesF29Workflow(review, 'review'), true);
+  assert.equal(matchesF29Workflow(informed, 'informed_unpaid'), true);
+  assert.equal(matchesF29Workflow(overdue, 'overdue'), true);
+});
+
+test('client documents default to relevant files from the last three months', () => {
+  const current = { type: 'f29', module: 'f29', name: 'F29 junio.xlsx', modifiedAt: '2026-06-10', isFolder: false };
+  const old = { ...current, modifiedAt: '2026-02-10' };
+  const unrelated = { type: 'other', module: 'other', name: 'foto.jpg', modifiedAt: '2026-06-10', isFolder: false };
+  assert.equal(documentGroup({ type: 'contract', module: 'other', name: 'Contrato.pdf' }), 'Contratos / legales');
+  assert.equal(isRecentRelevantDocument(current, new Date(2026, 5, 22)), true);
+  assert.equal(isRecentRelevantDocument(old, new Date(2026, 5, 22)), false);
+  assert.equal(isRecentRelevantDocument(unrelated, new Date(2026, 5, 22)), false);
 });

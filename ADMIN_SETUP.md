@@ -15,6 +15,7 @@ En un proyecto nuevo, ejecutar primero `supabase/schema.sql`. Después aplicar, 
 7. `20260624_security_production_baseline.sql`
 8. `20260625_transversal_quality.sql`
 9. `20260626_accountant_f29_assignment.sql`
+10. `20260627_f29_monthly_workflow.sql`
 
 No volver a pegar migraciones parcialmente en SQL Editor. Ejecutar siempre el archivo completo.
 

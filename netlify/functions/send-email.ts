@@ -15,12 +15,14 @@ export const handler: Handler = async event => {
   let scheduled = false;
   try {
     context = await authenticate(event);
+    if (context.role !== 'admin') throw Object.assign(new Error('Admin review is required before sending the final F29 email.'), { statusCode: 403, code: 'admin_required' });
     const input = parseBody<Input>(event);
     const to = validateEmails(input.to, true);
     const { data: period, error } = await context.supabase.from('f29_periods')
-      .select('id,client_id,year,month,amount,filed_date,status_code,status_label,tax_payment_due_date,responsible_user_id,responsible_name,clients(legal_name,assigned_user_id)')
+      .select('id,client_id,year,month,amount,filed_date,status_code,status_label,review_status,tax_payment_due_date,responsible_user_id,responsible_name,clients(legal_name,assigned_user_id)')
       .eq('id', input.f29_period_id).single();
     if (error || !period) throw Object.assign(new Error('F29 period not found'), { statusCode: 404 });
+    if (!['pending_admin_review', 'approved'].includes(String(period.review_status))) throw Object.assign(new Error('The F29 summary must be loaded and queued for admin review before client delivery.'), { statusCode: 409, code: 'review_required' });
 
     const client = Array.isArray(period.clients) ? period.clients[0] : period.clients;
     const responsibleId = period.responsible_user_id || client?.assigned_user_id;

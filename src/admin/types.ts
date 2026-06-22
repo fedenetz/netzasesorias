@@ -50,6 +50,8 @@ export interface ClientRow {
   observation: string;
   emailStatus: EmailStatus;
   emailSentAt: string | null;
+  reviewStatus?: 'none' | 'pending_admin_review' | 'approved' | 'rejected';
+  paymentStatus?: 'not_required' | 'pending' | 'paid';
   billingStatus: BillingStatus;
   billingAmount: number | null;
   billingDueDate: string | null;
@@ -147,6 +149,7 @@ export interface ClientDocument {
   classificationSource: 'inferred' | 'manual';
   processingStatus: string;
   modifiedAt: string | null;
+  indexedAt?: string | null;
   drivePath: string;
   depth: number;
   module: 'f29' | 'f22' | 'other';

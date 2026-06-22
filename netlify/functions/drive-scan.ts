@@ -182,7 +182,10 @@ export const handler: Handler = async (event) => {
   const foldersFound = items.length - filesFound;
   const maxDepth = items.reduce((max, item) => Math.max(max, item.depth), 0);
   if (scope !== 'period') await supabase.from('clients').update({ last_drive_scan_at: scannedAt, updated_at: scannedAt }).eq('id', clientId);
-  if (periodWorkbooks.length && created + updated > 0) await ensureF29LoadedStatus({ supabase, actorId: user.id, clientId, year, month, source: 'drive_scan' });
+  if (periodWorkbooks.length && created + updated > 0) {
+    const { data: matchedDocument } = await supabase.from('documents').select('id').eq('drive_file_id', periodWorkbooks[0].id).maybeSingle();
+    await ensureF29LoadedStatus({ supabase, actorId: user.id, clientId, year, month, source: 'drive_scan', documentId: matchedDocument?.id });
+  }
   await supabase.from('activity_log').insert({ actor_id: user.id, client_id: clientId, action: scope === 'period' ? 'f29_period_drive_scan' : 'drive_scan', entity_type: scope === 'period' ? 'f29_folder' : 'client', entity_id: scope === 'period' ? `${year}-${String(month).padStart(2, '0')}` : clientId, after_data: { year: year || null, month: month || null, folder_path: scanRoot.path || null, items_found: items.length, files_found: filesFound, folders_found: foldersFound, max_depth: maxDepth, truncated, created, updated, errors: errors.length } });
   return json(errors.length ? 207 : 200, { items_found: items.length, files_found: filesFound, folders_found: foldersFound, new_files: created, updated_files: updated, max_depth: maxDepth, truncated, errors });
 };

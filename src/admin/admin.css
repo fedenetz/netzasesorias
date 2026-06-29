@@ -423,3 +423,5 @@ html[data-control-theme="dark"] .control-shell :is(.is-proof .attachment-kind,.c
 html[data-control-theme="dark"] .control-shell .profile-tabs em{color:#b8c6d1;background:var(--surface-3)}
 html[data-control-theme="dark"] .control-shell :is(.payment-link-review,.period-file-list>button.suggested){color:#e3d2a4;background:#282617;border-color:#4d4528}
 html[data-control-theme="dark"] .control-shell :is(.document-filter-grid select,.document-card-actions select){color:var(--ink);background:var(--surface-2);border-color:var(--hairline)}
+.document-review-hint{color:var(--control-muted);font-size:10px;line-height:1.35}.notify-admin-button{font-weight:850}
+html[data-control-theme="dark"] .control-shell .document-review-hint{color:var(--muted-2)}

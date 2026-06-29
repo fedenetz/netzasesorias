@@ -25,7 +25,7 @@ export const benefitBlocks = [
   {
     code: '02',
     title: 'Obligaciones al dia',
-    text: 'Acompanamiento para F29, renta, declaraciones juradas y procesos mensuales dentro de plazos legales.',
+    text: 'Acompañamiento para F29, renta, declaraciones juradas y procesos mensuales dentro de plazos legales.',
     tone: 'green',
   },
   {
@@ -34,21 +34,9 @@ export const benefitBlocks = [
     text: 'Informacion contable, tributaria y laboral organizada para tomar decisiones y responder requerimientos.',
     tone: 'gold',
   },
-  {
-    code: '04',
-    title: 'Lenguaje claro',
-    text: 'Comunicacion directa para entender que corresponde hacer, que falta y cuales son los siguientes pasos.',
-    tone: 'blue',
-  },
-  {
-    code: '05',
-    title: 'Respaldo profesional',
-    text: 'Criterio responsable frente a SII, Tesoreria, Previred y procesos administrativos relacionados.',
-    tone: 'graphite',
-  },
 ];
 
-export const highlightedServices = services.slice(0, 6).map((service, index) => ({
+export const highlightedServices = services.slice(0, 4).map((service, index) => ({
   ...service,
   code: String(index + 1).padStart(2, '0'),
 }));
@@ -67,28 +55,7 @@ export const processSteps = [
     text: 'Se propone el servicio correspondiente, plazos, responsabilidades y documentos requeridos.',
   },
   {
-    title: 'Acompanamos la gestion',
-    text: 'Se mantiene seguimiento mensual o por hito, con comunicacion clara y respaldo documental.',
-  },
-];
-
-export const testimonialPlaceholders = [
-  {
-    quote:
-      'Reemplazar por testimonio real autorizado. Idealmente debe describir el problema inicial y el resultado concreto percibido.',
-    name: 'Cliente por confirmar',
-    context: 'Pyme o profesional independiente',
-  },
-  {
-    quote:
-      'Reemplazar por testimonio real autorizado. Mantenerlo breve, especifico y verificable para aumentar confianza.',
-    name: 'Cliente por confirmar',
-    context: 'Empresa en Concepcion',
-  },
-  {
-    quote:
-      'Reemplazar por testimonio real autorizado. Evitar promesas absolutas; priorizar orden, claridad y acompanamiento.',
-    name: 'Cliente por confirmar',
-    context: 'Proceso contable o tributario',
+    title: 'Acompañamos la gestión',
+    text: 'Se mantiene seguimiento mensual o por hito, con comunicación clara y respaldo documental.',
   },
 ];

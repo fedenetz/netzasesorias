@@ -18,6 +18,7 @@ function setMeta(selector, attributes) {
 export function SEO({ title, description, path }) {
   useEffect(() => {
     const canonicalUrl = absoluteUrl(path);
+    const socialImage = absoluteUrl('/brand/logo-negro.png');
     document.title = title;
 
     setMeta('meta[name="description"]', { name: 'description', content: description });
@@ -25,7 +26,13 @@ export function SEO({ title, description, path }) {
     setMeta('meta[property="og:description"]', { property: 'og:description', content: description });
     setMeta('meta[property="og:url"]', { property: 'og:url', content: canonicalUrl });
     setMeta('meta[property="og:type"]', { property: 'og:type', content: 'website' });
-    setMeta('meta[name="twitter:card"]', { name: 'twitter:card', content: 'summary_large_image' });
+    setMeta('meta[property="og:image"]', { property: 'og:image', content: socialImage });
+    setMeta('meta[property="og:image:alt"]', { property: 'og:image:alt', content: 'Logo de Netz Asesorías' });
+    setMeta('meta[name="twitter:card"]', { name: 'twitter:card', content: 'summary' });
+    setMeta('meta[name="twitter:title"]', { name: 'twitter:title', content: title });
+    setMeta('meta[name="twitter:description"]', { name: 'twitter:description', content: description });
+    setMeta('meta[name="twitter:image"]', { name: 'twitter:image', content: socialImage });
+    setMeta('meta[name="twitter:image:alt"]', { name: 'twitter:image:alt', content: 'Logo de Netz Asesorías' });
 
     let canonical = document.head.querySelector('link[rel="canonical"]');
     if (!canonical) {

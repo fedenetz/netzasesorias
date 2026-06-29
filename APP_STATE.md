@@ -39,7 +39,7 @@ La aplicación evolucionó desde un control interno F29/F22 hacia una base de ge
 - Historial con próximos dos meses en prioridad visual baja, sin tratarlos como alertas.
 - Las cuentas `accountant` ven y operan solamente los F29 vinculados a su identidad. La asignación resuelve primero `responsible_user_id`, luego el nombre operativo de `responsible_name` contra el perfil/safelist y finalmente `clients.assigned_user_id`.
 - El mes se inicializa mediante RPC idempotente para los clientes F29 activos visibles al operador; la unicidad cliente/año/mes evita duplicados.
-- Asociar un Excel deja el período en `Cargada`, solicita revisión administrativa y envía una sola notificación interna a control antes de contactar al cliente.
+- Asociar un Excel deja el período en `Cargada` sin avisos automáticos; el contador debe confirmar manualmente que el archivo está cargado e indexado y usar **Avisar admin**, que envía una sola notificación interna a `richard@ainahue.cl`, registra `email_logs` y deja trazabilidad en `activity_log` antes de contactar al cliente.
 - El envío exitoso al cliente deja el período `Informada` y el pago pendiente; el pago se confirma manualmente mediante RPC auditada.
 - Un job diario recuerda automáticamente los F29 informados e impagos un día antes del vencimiento, con idempotencia por período.
 - El flujo mensual F29 abre en `Pendientes`: todo período clasificado y aún no pagado. `Sin movimiento` y `Sin estado` quedan ocultos por defecto, con filtros explícitos; el contador responsable debe clasificar los períodos sin estado.

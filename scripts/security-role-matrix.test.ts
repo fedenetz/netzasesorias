@@ -25,7 +25,7 @@ test('authoritative role matrix', () => {
 });
 
 test('every user-triggered mutation function uses shared operator authentication', async () => {
-  const files = ['send-email','send-reminder','prepare-email-attachment','register-email-attachment','drive-scan','scan-drive-folder','upload-f29-document','create-billing-item','update-billing-item','create-payment-link'];
+  const files = ['send-email','send-reminder','send-f29-admin-review','prepare-email-attachment','register-email-attachment','drive-scan','scan-drive-folder','upload-f29-document','create-billing-item','update-billing-item','create-payment-link'];
   for (const name of files) {
     const source = await readFile(new URL(`../netlify/functions/${name}.ts`, import.meta.url), 'utf8');
     if (name === 'scan-drive-folder') assert.match(source, /drive-scan/);

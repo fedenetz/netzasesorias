@@ -3,11 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#212832" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#212832" media="(prefers-color-scheme: dark)" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Netz Control" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="icon" type="image/png" href="/brand/icono-negro.png" />
+    <link rel="icon" type="image/png" href="/brand/icono-negro.png" media="(prefers-color-scheme: light)" />
+    <link rel="icon" type="image/png" href="/brand/icono-blanco.png" media="(prefers-color-scheme: dark)" />
     <link rel="apple-touch-icon" href="/brand/icono-negro.png" />
     <title>Netz Control</title>
     <meta
@@ -16,7 +18,16 @@
     />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Netz Asesorias" />
-    <meta property="og:image" content="/brand/logo-negro.png" />
+    <meta property="og:image" content="https://netzasesorias.cl/brand/logo-negro.png" />
+    <meta property="og:image:alt" content="Logo de Netz Asesorías" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Netz Asesorías | Contabilidad y asesoría tributaria en Concepción" />
+    <meta
+      name="twitter:description"
+      content="Asesoría contable, tributaria y laboral en Concepción, con diagnóstico inicial gratuito."
+    />
+    <meta name="twitter:image" content="https://netzasesorias.cl/brand/logo-negro.png" />
+    <meta name="twitter:image:alt" content="Logo de Netz Asesorías" />
   </head>
   <body>
     <form name="contacto-netz" netlify netlify-honeypot="bot-field" hidden>

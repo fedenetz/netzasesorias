@@ -80,6 +80,20 @@ export async function markF29Payment(periodId: string, paid: boolean) {
   if (error) throw error;
 }
 
+export async function sendF29AdminReview(periodId: string, documentId?: string) {
+  if (!supabase) throw new Error('Supabase no estÃ¡ configurado.');
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('La sesiÃ³n expirÃ³.');
+  const response = await fetch('/.netlify/functions/send-f29-admin-review', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ f29_period_id: periodId, document_id: documentId }),
+  });
+  const result = await response.json();
+  if (!response.ok) throw Object.assign(new Error(result.error ?? 'No fue posible avisar a administraciÃ³n.'), { code: result.code });
+  return result as { email_log_id: string; to: string };
+}
+
 export async function loadF29PeriodDocument(clientId: string, year: number, month: number) {
   const documents = await loadClientDocuments(clientId);
   const document = documents

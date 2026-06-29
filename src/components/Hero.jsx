@@ -10,7 +10,7 @@ export function Hero() {
           <p className="eyebrow hero-kicker">{company.foundedLabel}</p>
           <h1>Asesoria contable, tributaria y laboral para operar con orden y tranquilidad.</h1>
           <p>
-            Acompanamos a empresas, emprendedores y profesionales con una mirada tecnica, directa y responsable.
+            Acompañamos a empresas, emprendedores y profesionales con una mirada técnica, directa y responsable.
           </p>
           <div className="hero-actions" aria-label="Acciones principales">
             <a className="button button-primary" href="/contacto">

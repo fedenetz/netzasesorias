@@ -81,6 +81,7 @@ No desactivar ni quitar el rol admin a la propia cuenta; la RPC bloquea ese cier
 
 - El dominio de envío debe aparecer como verificado en Resend.
 - `richard@ainahue.cl` se agrega como CC de control para F29.
+- El aviso interno de revisión F29 a `richard@ainahue.cl` no es automático: después de recargar/subir el Excel, el contador debe confirmar que quedó correctamente cargado e indexado y pulsar **Avisar admin**.
 - El responsable activo también se agrega como CC.
 - El cliente debe usar **Responder a todos** para que todos reciban su respuesta.
 - Los adjuntos privados tienen límite combinado de 10 MB.
